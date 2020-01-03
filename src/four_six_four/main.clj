@@ -1,4 +1,4 @@
-(ns four-six-four.core
+(ns four-six-four.main
   (:gen-class))
 
 (defn -main
