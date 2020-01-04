@@ -9,8 +9,11 @@
   ([w x]
    (cl-format nil "~v,'0b" w x)))
 
-(defn format-hex [x]
-  (cl-format nil "~x" x))
+(defn format-hex
+  ([x]
+   (cl-format nil "~x" x))
+  ([w x]
+   (cl-format nil "~v,'0x" w x)))
 
 (defn digit->int [c]
   (- (int c) 48))

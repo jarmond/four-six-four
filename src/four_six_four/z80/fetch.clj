@@ -1,6 +1,9 @@
 (ns four-six-four.z80.fetch
-  (:require [four-six-four.z80 :refer [read-pc-byte]]
-            [four-six-four.z80.decoder :refer [decode-opcode decode-operands]]))
+  (:require
+   byte-streams
+   [four-six-four.utils :refer [walk-member]]
+   [four-six-four.z80 :refer [read-pc-byte]]
+   [four-six-four.z80.decoder :refer [decode-opcode decode-operands]]))
 
 ;;; Fetcher
 
@@ -16,11 +19,10 @@
 (defn operand-size
   "Determine number of operand bytes from decode `instr`uction."
   [instr]
-  (let [xs (set (flatten (seq instr)))]
-    (cond
-      (xs :arg2) 2
-      (xs :arg1) 1
-      :else 0)))
+  (condp walk-member instr
+    :arg2 2
+    :arg1 1
+    0))
 
 
 (defn fetcher
@@ -63,7 +65,6 @@
   (dosync
    (fetcher (partial read-pc-byte z80))))
 
-;; TODO abstract out the byte buffer.
 (defn disassemble
   "Disassemble bytes to assembly."
   [bytes]
@@ -81,4 +82,9 @@
 
 (defn disassemble-file
   "Disassemble file to assembly."
-  [filename])
+  [filename]
+  (->
+   (java.io.File. filename)
+   byte-streams/to-byte-array
+   vec
+   disassemble))
