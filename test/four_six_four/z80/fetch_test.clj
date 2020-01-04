@@ -2,7 +2,7 @@
   (:require  [clojure.test :refer :all]
              [four-six-four.z80.fetch :refer :all]))
 
-(def program
+(def memcpy
   {:object [0x78 0xB1 0xC8 0x1A 0x77 0x13 0x23 0x0B 0xC3 0x00 0x10]
    :source "
 ; memcpy --
@@ -39,10 +39,57 @@ loop    ld      a,b         ;Test BC,
          {:op :dec  :src  {:mode :direct :od :bc}}
          {:op :jp   :src  {:mode :imm :od [0x00 0x10]}}]})
 
+(def bubble-sort
+  (let [DATA [0x26 0x00]
+        FLAG 0]
+    {:url "Zilog_Z-80_CPU_Technical_Manual.pdf?page=73"
+     :object
+     [0x22 0x26 0x00
+      0xCB 0x84
+      0x41
+      0x05
+      0xDD 0x2A 0x26 0x00
+      0xDD 0x7E 0x00
+      0x57
+      0xDD 0x5E 0x01
+      0x93
+      0x30 0x08
+      0xDD 0x73 0x00
+      0xDD 0x72 0x01
+      0xCB 0xC4
+      0xDD 0x23
+      0x10 0xEA
+      0xCB 0x44
+      0x20 0xDE
+      0xC9]
+     :asm
+     [{:op :ld   :dest {:mode :indirect :od DATA} :src {:mode :direct :od :hl}} ; LD (DATA), HL
+      {:op :res  :src  {:mode :direct :od :h :bit FLAG}}
+      {:op :ld   :dest {:mode :direct :od :b} :src {:mode :direct :od :c}}
+      {:op :dec  :src  {:mode :direct :od :b}}
+      {:op :ld   :dest {:mode :direct :od :idx} :src {:mode :indirect :od DATA}}
+      {:op :ld   :dest {:mode :direct :od :a} :src {:mode :indirect :od :ix}}
+      {:op :ld   :dest {:mode :direct :od :d} :src {:mode :direct :od :a}}
+      {:op :ld   :dest {:mode :direct :od :e} :src {:mode :indirect :od [:ix 1]}}
+      {:op :sub  :src {:mode :direct :od :e}}
+      {:op :jr   :src {:mode :imm :od 10 :cond :nc}}
+      {:op :ld   :dest {:mode :indirect :od :ix} :src {:mode :direct :od :e}}
+      {:op :ld   :dest {:mode :indirect :od [:ix 1]} :src {:mode :direct :od :d}}
+      {:op :set  :src {:mode :direct :od :h :bit FLAG}}
+      {:op :inc  :src {:mode :direct :od :ix}}
+      {:op :djnz :src {:mode :imm :od -20}}
+      {:op :bit  :src {:mode :direct :od :h :bit FLAG}}
+      {:op :jr   :src {:mode :imm :od -32 :cond :nz}}
+      {:op :ret}]}))
+
+
 
 #_(deftest assembler-test
   (testing "Assemble memcpy"))
 
 (deftest disassembler-test
   (testing "Disassembler"
-    (is (:asm program) (disassemble (:object program)))))
+    (testing "memcpy"
+      (is (:asm memcpy) (disassemble (:object memcpy))))
+    (testing "bubble sort"
+      (is (:asm bubble-sort) (disassemble (:object bubble-sort))))))

@@ -47,16 +47,18 @@
                     (reader))
           [internal-operand last] (when (= prefix2 0xCB)
                                     [(reader) (reader)])
-          opcode [prefix1 prefix2 last]
-          instr (decode-opcode opcode)
-          operands (or internal-operand
-                       (repeatedly (operand-size instr) reader))
+
+          instr (decode-opcode [prefix1 prefix2 last])
+          operands (if internal-operand
+                     [internal-operand]
+                     (repeatedly (operand-size instr) reader))
 
           ;; Reconstruct opcode as seen in memory.
-          original-opcode (cond
-                            (seq internal-operand) [prefix1 prefix2 internal-operand last]
-                            (seq prefix2) (into [prefix1 prefix2] operands)
-                            :else (into [prefix1] operands))]
+          original-opcode
+          (cond
+            (seq internal-operand) [prefix1 prefix2 internal-operand last]
+            prefix2 (into [prefix1 prefix2] operands)
+            :else (into [prefix1] operands))]
       {:opcode original-opcode :instr (decode-operands instr operands)})))
 
 (defn fetch-instruction
@@ -65,6 +67,7 @@
   (dosync
    (fetcher (partial read-pc-byte z80))))
 
+;; FIXME cleaner with async channels/buffers?
 (defn disassemble
   "Disassemble bytes to assembly."
   [bytes]

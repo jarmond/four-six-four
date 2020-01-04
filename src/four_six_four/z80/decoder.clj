@@ -465,21 +465,21 @@
    ;; SET b, r
    {0xCB
     (generic-pattern-reg2 (str pat "bbbrrr") bit-map opcode-reg
-                          {:op mnemonic :dest {:mode :direct :od :reg2 :bit :reg1}})}
+                          {:op mnemonic :src {:mode :direct :od :reg2 :bit :reg1}})}
    ;; SET b, (HL)
    {0xCB
     (generic-pattern-reg (str pat "bbb110") bit-map
-                         {:op mnemonic :dest {:mode :indirect :od :hl :bit :reg}})}
+                         {:op mnemonic :src {:mode :indirect :od :hl :bit :reg}})}
    ;; SET b, (IX+d)
    {0xDD
     {0xCB
      (generic-pattern-reg (str pat "bbb110") bit-map
-                          {:op mnemonic :dest {:mode :indirect :od [:ix :arg1] :bit :reg}})}}
+                          {:op mnemonic :src {:mode :indirect :od [:ix :arg1] :bit :reg}})}}
    ;; RLC (IY+d)
    {0xFD
     {0xCB
      (generic-pattern-reg (str pat "bbb110") bit-map
-                          {:op mnemonic :dest {:mode :indirect :od [:iy :arg1] :bit :reg}})}}))
+                          {:op mnemonic :src {:mode :indirect :od [:iy :arg1] :bit :reg}})}}))
 
 (def bit-set-group
   "Table 7.0-8: Bit set, reset and test group."
@@ -507,20 +507,20 @@
    ;; JP cc, nn
    (pattern-jpcond
     "11ccc010"
-    {:op :jp :src {:mode :imm :od [:arg1 :arg2] :cond :reg}})
+    {:op :jp :src {:mode :imm :od [:arg1 :arg2] :jpcond :reg}})
    ;; JP nn
    {0xC3
     {:op :jp :src {:mode :imm :od [:arg1 :arg2]}}
     ;; JR e
     0x18 {:op :jr :src {:mode :imm :od :arg1}}
     ;; JR C, e
-    0x38 {:op :jr :src {:mode :imm :od :arg1 :cond :c}}
+    0x38 {:op :jr :src {:mode :imm :od :arg1 :jpcond :c}}
     ;; JR NC, e
-    0x30 {:op :jr :src {:mode :imm :od :arg1 :cond :nc}}
+    0x30 {:op :jr :src {:mode :imm :od :arg1 :jpcond :nc}}
     ;; JR Z, e
-    0x28 {:op :jr :src {:mode :imm :od :arg1 :cond :z}}
+    0x28 {:op :jr :src {:mode :imm :od :arg1 :jpcond :z}}
     ;; JR NZ, e
-    0x20 {:op :jr :src {:mode :imm :od :arg1 :cond :nz}}
+    0x20 {:op :jr :src {:mode :imm :od :arg1 :jpcond :nz}}
     ;; JP (HL) NB this does PC <- HL, so it's really using direct address from reg.
     0xE9 {:op :jp :src {:mode :direct :od :hl}}}
    ;; JP (I?)
@@ -541,10 +541,10 @@
     {:op :ret}}
    ;; CALL cc, nn
    (pattern-jpcond "11ccc100"
-                   {:op :call :src {:mode :imm :od [:arg1 :arg2] :cond :reg}})
+                   {:op :call :src {:mode :imm :od [:arg1 :arg2] :jpcond :reg}})
    ;; RET cc
    (pattern-jpcond "11ccc000"
-                   {:op :ret :src {:cond :reg}})
+                   {:op :ret :src {:jpcond :reg}})
    ;; RETI
    {0xED
     {0x4D {:op :reti}

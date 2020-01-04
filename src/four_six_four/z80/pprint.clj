@@ -4,15 +4,22 @@
             [four-six-four.numbers :refer [format-hex]]))
 
 (defn format-loc
-  [{:keys [mode od cond]}]
-  (cl-format nil "~:[~;(~]~a~2:*~:[~;)~]"
-             (= mode :indirect)
-             (if (keyword? od)
-               (name od)
-               (format-hex od))))
+  [{:keys [mode od bit jpcond]}]
+  (let [dest-str (cond
+                   bit (str bit ",")
+                   jpcond (str (name jpcond) ",")
+                   :else "")
+        src-str (cond
+                  (keyword? od) (name od)
+                  (vector? od) (cl-format nil "~a~[~:;+~:*~a~]" (name (first od)) (second od))
+                  :else (format-hex od))]
+    (cl-format nil "~:[~;(~]~a~a~3:*~:[~;)~]"
+               (= mode :indirect)
+               dest-str
+               src-str)))
 
 (defn format-instr
-  [{:keys [op dest src bla]}]
+  [{:keys [op dest src]}]
   (cl-format nil "~4a ~:[~*~;~a,~]~:[~*~;~a~]"
              (name op)
              dest (when dest (format-loc dest))
