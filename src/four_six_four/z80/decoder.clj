@@ -636,7 +636,7 @@
        ;; Combine operands into 16-bit value,
        (postwalk (fn [x]
                    (if (and (vector? x) (every? number? x))
-                     (bytes->int-le x)
+                     (le-bytes->int x)
                      x)))
 
        ;; Two's complement IX/Y offsets.

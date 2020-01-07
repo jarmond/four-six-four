@@ -1,5 +1,10 @@
 (ns four-six-four.utils)
 
+(defn nilmap
+  "Create map with keys mapped to nil."
+  [keys]
+  (zipmap keys (repeat nil)))
+
 (defn walk-count
   "Walk collection `coll` and count entries with `val`"
   ([val form]

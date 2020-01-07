@@ -1,6 +1,7 @@
 (ns four-six-four.z80
   (:require [clojure.pprint :refer [cl-format]]
-            [four-six-four.numbers :refer :all]))
+            [four-six-four.numbers :refer :all]
+            [four-six-four.utils :refer [nilmap]]))
 
 ;;;; Z80 emulation
 
@@ -13,10 +14,6 @@
 
 ;;; State
 
-(defn nilmap
-  "Create map with keys mapped to nil."
-  [keys]
-  (zipmap keys (repeat nil)))
 
 (defrecord Z80 [running? program-counter iff registers memory])
 (defn make-z80 []

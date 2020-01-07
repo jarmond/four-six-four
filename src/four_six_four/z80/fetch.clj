@@ -55,10 +55,9 @@
 
           ;; Reconstruct opcode as seen in memory.
           original-opcode
-          (cond
-            (seq internal-operand) [prefix1 prefix2 internal-operand last]
-            prefix2 (into [prefix1 prefix2] operands)
-            :else (into [prefix1] operands))]
+          (if (seq internal-operand)
+            [prefix1 prefix2 internal-operand last]
+            (vec (keep identity (concat [prefix1 prefix2] operands))))]
       {:opcode original-opcode :instr (decode-operands instr operands)})))
 
 (defn fetch-instruction
@@ -67,7 +66,7 @@
   (dosync
    (fetcher (partial read-pc-byte z80))))
 
-;; FIXME cleaner with async channels/buffers?
+;; FIXME use clojure.java.io.reader
 (defn disassemble
   "Disassemble bytes to assembly."
   [bytes]

@@ -18,12 +18,12 @@
 (defn digit->int [c]
   (- (int c) 48))
 
-(defn bytes->int-le
+(defn le-bytes->int
   "Convert sequence of bytes into integer assuming little-endian order."
   [xs]
-  (->> xs
-       (map-indexed #(bit-shift-left %2 (* 8 %1)))
-       (reduce +)))
+  (as-> xs xxs
+       (map bit-shift-left xxs (range 0 (* (count xs) 8) 8))
+       (reduce bit-or xxs)))
 
 (defn binary->int
   "Convert sequence of binary values to integer."
@@ -64,3 +64,5 @@
 
 (defn digit? [c] (<= (int \0) (int c) (int \9)))
 
+(defn log2 [x]
+  (/ (Math/log x) (Math/log 2)))
