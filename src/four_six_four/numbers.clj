@@ -1,5 +1,8 @@
 (ns four-six-four.numbers
-  (:require [clojure.pprint :refer [cl-format]]))
+  (:require [clojure.pprint :refer [cl-format]])
+  (:import java.lang.Long))
+
+;;; TODO organize or split
 
 ;;; Number utilities
 
@@ -24,6 +27,10 @@
   (as-> xs xxs
        (map bit-shift-left xxs (range 0 (* (count xs) 8) 8))
        (reduce bit-or xxs)))
+
+(defn two-bytes->int
+  [msb lsb]
+  (bit-or (bit-shift-left msb 8) lsb))
 
 (defn binary->int
   "Convert sequence of binary values to integer."
@@ -53,7 +60,11 @@
 (defn low-nib [x]
   (bit-and 0x0F x))
 (defn high-nib [x]
-  (bit-shift-right x 4))
+  (unsigned-bit-shift-right x 4))
+(defn low-byte [x]
+  (bit-and 0xFF x))
+(defn high-byte [x]
+  (unsigned-bit-shift-right x 8))
 
 (defn twos-comp
   "Interpret unsigned number `x` of size `bits` as two's complement."
@@ -64,5 +75,17 @@
 
 (defn digit? [c] (<= (int \0) (int c) (int \9)))
 
-(defn log2 [x]
-  (/ (Math/log x) (Math/log 2)))
+(defn floor-log2 [x]
+  (- 63 (Long/numberOfLeadingZeros x)))
+
+(defn ceil-log2 [x]
+  (- 64 (Long/numberOfLeadingZeros (dec x))))
+
+(defn pop-count-byte [x]
+  (Long/bitCount (bit-and 0xFF x)))
+
+(defn rotate-left [x n]
+  (Long/rotateLeft x n))
+
+(defn rotate-right [x n]
+  (Long/rotateRight x n))

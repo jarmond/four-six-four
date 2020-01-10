@@ -1,7 +1,7 @@
 (ns four-six-four.cdt
   (:require [clojure.pprint :refer [cl-format]]
             [clojure.walk :refer [postwalk]]
-            [four-six-four.numbers :refer [log2]])
+            [four-six-four.numbers :refer [ceil-log2]])
   (:import java.io.FileInputStream))
 
 ;;;; CDT tape image format stream.
@@ -130,7 +130,7 @@
   pilotsync-symbols [:symdef pilotsync-alphabet max-pilotsync-pulses]
   pilotsync-data [:prle data-symbol-count]
   data-symbols [:symdef data-alphabet max-data-pulses]
-  data [:byte (Math/ceil (* (Math/ceil (log2 data-alphabet)) (/ data-symbol-count 8)))])
+  data [:byte (Math/ceil (* (ceil-log2 data-alphabet) (/ data-symbol-count 8)))])
 
 (defblock PauseBlock 0x20
   pause-duration :word)
