@@ -278,12 +278,12 @@
      ;; CPDR
      0xB9 {:op :cpdr}}}))
 
-(defmacro assoc-if
+(defn assoc-if
   "Assoc `key` `value` pair into `map` if `cond` is true, otherwise leaves map untouched."
   [cond map key val]
-  `(if ~cond
-     (assoc ~map ~key ~val)
-     ~map))
+  (if cond
+     (assoc map key val)
+     map))
 
 (defn gen-arithmetic-group
   "Generates arithmetic and logical instruction decoders which follow a consistent pattern."
