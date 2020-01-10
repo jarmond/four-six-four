@@ -2,7 +2,7 @@
   (:require
    byte-streams
    [four-six-four.utils :refer [walk-member]]
-   [four-six-four.z80 :refer [read-pc-byte]]
+   [four-six-four.z80.vm :refer [read-pc-byte]]
    [four-six-four.z80.decoder :refer [decode-opcode decode-operands]]))
 
 ;;; Fetcher
@@ -62,9 +62,9 @@
 
 (defn fetch-instruction
   "Fetch and decode instruction from memory at PC."
-  [z80]
+  []
   (dosync
-   (fetcher (partial read-pc-byte z80))))
+   (fetcher (partial read-pc-byte))))
 
 ;; FIXME use clojure.java.io.reader
 (defn disassemble
