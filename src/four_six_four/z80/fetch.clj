@@ -26,7 +26,8 @@
 
 
 (defn fetcher
-  "Fetch and decode instruction. Fetch-Decode sequence is as follows:
+  "Fetch and decode instruction to intermediate representation. Fetch-Decode sequence
+   is as follows:
     1. Read first opcode byte.
     2. Call [[opcode-size]].
     3. If size is 2 bytes, read next opcode byte.
@@ -82,6 +83,7 @@
                        (repeatedly (fn [] @pc))
                        (repeatedly #(fetcher get-byte)))))))
 
+;; FIXME use FileInputStream
 (defn disassemble-file
   "Disassemble file to assembly."
   [filename]

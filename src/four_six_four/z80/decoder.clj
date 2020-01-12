@@ -507,20 +507,19 @@
    ;; JP cc, nn
    (pattern-jpcond
     "11ccc010"
-    {:op :jp :src {:mode :imm :od [:arg1 :arg2] :jpcond :reg}})
+    {:op :jp :src {:mode :imm :od [:arg1 :arg2]} :dest {:mode :jpcond :od :reg}})
    ;; JP nn
-   {0xC3
-    {:op :jp :src {:mode :imm :od [:arg1 :arg2]}}
+   {0xC3 {:op :jp :src {:mode :imm :od [:arg1 :arg2]}}
     ;; JR e
     0x18 {:op :jr :src {:mode :imm :od :arg1}}
     ;; JR C, e
-    0x38 {:op :jr :src {:mode :imm :od :arg1 :jpcond :c}}
+    0x38 {:op :jr :src {:mode :imm :od :arg1} :dest {:mode :jpcond :od :c}}
     ;; JR NC, e
-    0x30 {:op :jr :src {:mode :imm :od :arg1 :jpcond :nc}}
+    0x30 {:op :jr :src {:mode :imm :od :arg1} :dest {:mode :jpcond :od :nc}}
     ;; JR Z, e
-    0x28 {:op :jr :src {:mode :imm :od :arg1 :jpcond :z}}
+    0x28 {:op :jr :src {:mode :imm :od :arg1} :dest {:mode  :jpcond :od :z}}
     ;; JR NZ, e
-    0x20 {:op :jr :src {:mode :imm :od :arg1 :jpcond :nz}}
+    0x20 {:op :jr :src {:mode :imm :od :arg1} :dest {:mode  :jpcond :od :nz}}
     ;; JP (HL) NB this does PC <- HL, so it's really using direct address from reg.
     0xE9 {:op :jp :src {:mode :direct :od :hl}}}
    ;; JP (I?)
@@ -541,10 +540,10 @@
     {:op :ret}}
    ;; CALL cc, nn
    (pattern-jpcond "11ccc100"
-                   {:op :call :src {:mode :imm :od [:arg1 :arg2] :jpcond :reg}})
+                   {:op :call :src {:mode :imm :od [:arg1 :arg2]} :dest {:mode :jpcond :od :reg}}})
    ;; RET cc
    (pattern-jpcond "11ccc000"
-                   {:op :ret :src {:jpcond :reg}})
+                   {:op :ret :src {:mode :jpcond :od :reg}})
    ;; RETI
    {0xED
     {0x4D {:op :reti}
@@ -574,7 +573,7 @@
   {0xED
    ;; IN flags, (C)
    {0x70
-    {:op :in :dest {:mode :direct :od :flags} :src {:mode :indirect :od :c}}
+    {:op :in :dest {:mode :direct :od :f} :src {:mode :indirect :od :c}}
     ;; INI
     0xA2 {:op :ini}
     ;; INIR
