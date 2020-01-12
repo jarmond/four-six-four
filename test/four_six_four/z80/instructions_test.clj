@@ -3,7 +3,9 @@
             [four-six-four.z80.control :refer [execute-program]]
             [four-six-four.z80.vm
              :refer
-             [*z80* make-z80 read-reg reset set-flag test-flag]]))
+             [*z80* make-z80 read-reg reset flags set-flag test-flag]]
+            [four-six-four.z80.parser :refer [parse-assembly]]
+            [clojure.string :as str]))
 
 (defn z80-fixture [f]
   (binding [*z80* (make-z80)]
@@ -13,8 +15,7 @@
 
 (use-fixtures :each z80-fixture)
 
-;; change to get state function
-(defn get-state
+#_(defn get-state
   "Return accumulator and flags."
   ([]
    {:acc (read-reg :a)})
@@ -22,63 +23,38 @@
    (merge (get-state) {:flags (->> (map test-flag flags)
                                    (zipmap flags))})))
 
-(defn load-imm
-  [reg imm]
-  {:op :ld :dest {:mode :direct :od reg} :src {:mode :imm :od imm}})
+(defn get-state
+  "Return state to match expected."
+  [expected]
+  (reduce (fn [m k]
+            (assoc m k (case k
+                         :acc (read-reg :a)
+                         :set-flags (keep #(when (test-flag %) %) flags)
+                         :reset-flags (keep #(when-not (test-flag %) %) flags))))
+          {}
+          (keys expected)))
 
-(defn load-mem
-  [loc val]
-  (list
-   (load-imm :a val)
-   {:op :ld :dest {:mode :indirect :od loc} :src {:mode :direct :od :a}}
-   {:op :xor :src {:mode :direct :od :a}}))
 
 (defmacro test-program
-  [regvals memvals setflags instr & body]
-  `(let [program# [~@(concat (mapcat (fn [[loc val]] (load-mem loc val)) memvals)
-                             (map (fn [[d s]] (load-imm d s)) regvals))
-                   ~instr]]
-     ~(when setflags
-        `(dosync
-          ~@(map #(list 'set-flag %) setflags)))
-     (execute-program program#)
-     ~@body))
+  [program expected]
+  `(let [ast# (parse-assembly ~program)
+         msg# (-> ~program str/split-lines last str/trim)]
+     (execute-program ast#)
+     (is (= ~expected (get-state ~expected)) msg#)))
+
 
 (deftest single-op-test
   (testing "Arithmetic"
     (testing "ADD"
-      (test-program {:a 0x44 :c 0x11} nil nil
-                    {:op :add :dest {:mode :direct :od :a} :src {:mode :direct :od :c}}
-                    (is (= {:acc 0x55} (get-state)) "ADD A, C"))
-      (test-program {:a 0x23} nil nil
-                    {:op :add :dest {:mode :direct :od :a} :src {:mode :imm :od 0x33}}
-                    (is (= {:acc 0x56} (get-state)) "ADD A, 0x33"))
-      (test-program {:a 0xA0 :hl 0x0A}
-                    {0x0A 0x08} nil
-                    {:op :add :dest {:mode :direct :od :a} :src {:mode :indirect :od :hl}}
-                    (is (= {:acc 0xA8} (get-state)) "ADD A, (HL)"))
-      (test-program {:a 0x11 :ix 0x05}
-                    {0x0A 0x22} nil
-                    {:op :add :dest {:mode :direct :od :a} :src {:mode :indirect :od [:ix 5]}}
-                    (is (= {:acc 0x33} (get-state)) "ADD A, (IX+5)"))
-      (test-program {:a 0x11 :iy 0x05}
-                    {0x0A 0x22} nil
-                    {:op :add :dest {:mode :direct :od :a} :src {:mode :indirect :od [:iy 5]}}
-                    (is (= {:acc 0x33} (get-state)) "ADD A, (IY+5)")))
-
-    (testing "ADC"
-      (test-program {:a 0x16 :hl 0x04}
-                    {0x04 0x10}
-                    [:c]
-                    {:op :adc :dest {:mode :direct :od :a} :src {:mode :indirect :od :hl}}
-                    (is (= {:acc 0x27} (get-state)) "ADC A, (HL)")))
-
-    (testing "SUB"
-      (test-program {:a 0x29 :d 0x11} nil nil
-                    {:op :sub :dest {:mode :direct :od :a} :src {:mode :indirect :od :d}}
-                    (is (= {:acc 0x18} (get-state)) "SUB A, D")))
-
-
-    )
-  )
+      (test-program " ld a, 0x44\n ld c, 0x11\n add a, c"
+                    {:acc 0x55})
+      (test-program " ld a, 0x23\n  add a, 0x33"
+                    {:acc 0x56})
+      (test-program " ld a, 0xA0\n ld hl, 0x0A\n ld (0x0A), 0x08\n add a, (hl)"
+                    {:acc 0xA8})
+      (test-program " ld a, 0x11\n ld ix, 0x05\n ld (0x05), 0x22\n add a, (ix+5)"
+                    {:acc 0x33})
+      (test-program " ld a, 0x11\n ld iy, 0x05\n ld (0x05), 0x22\n add a, (iy+5)"
+                    {:acc 0x33})
+    )))
 

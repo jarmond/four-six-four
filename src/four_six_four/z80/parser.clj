@@ -24,7 +24,7 @@
 
     <expression> = location | location operator (number|identifier)
     <operator> = '+'|'-'
-    <location> = register / identifier
+    <location> = register / identifier / number
     register = 'a'|'b'|'c'|'d'|'e'|'f'|'hl'|'ix'|'iy'|'af'|'bc'|'de'
     flag = 'nz'|'z'|'nc'|'c'|'po'|'pe'|'p'|'m'
     identifier = alpha|'$'
@@ -34,15 +34,12 @@
     label = alpha
     space = #'[ \\t]+'
     dec = digits
-    hex = digits <'h'> | <'0x'> digits
+    hex = hexdigits <'h'> | <'0x'> hexdigits
     <digits> = #'-?[0-9]+'
+    <hexdigits> = #'-?[0-9a-f]+'
     <alpha> = #'[a-z]+'
     comment = #';.*'
     "))
-
-(defn parse-assembly [source]
-  (let [source (str/lower-case (str source "\n"))]
-    (z80-cfg source)))
 
 (defn operand->ir
   [[mode [type val :as od]]]
@@ -55,12 +52,17 @@
 
 (defn statement->ir
   [[stmt & nodes]]
-  (println stmt nodes)
   (when (= stmt :statement)
     (let [astmt (reduce (fn [m [k v]] (assoc m k v)) {} nodes)]
       (cond-> astmt
+        (contains? astmt :op) (update :op keyword)
         (contains? astmt :src) (update :src operand->ir)
         (contains? astmt :dest) (update :dest operand->ir)))))
 
-(defn ast->ir [ast]
-  (map statement->ir ast))
+
+(defn parse-assembly [source]
+  (let [source (str/lower-case (str source "\n"))]
+    (-> source
+        z80-cfg
+        ast->ir)))
+
