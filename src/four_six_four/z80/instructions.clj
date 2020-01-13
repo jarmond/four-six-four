@@ -102,27 +102,32 @@
     :carry-test  one of :sub or :add, selects carry test expression
     :setn        whether to set N flag for subtract operation
     :store       whether to store result in dest
-    :by-one      add one to src and store in-place"
+    :by-one      add one to src and store in-place
+    :implicit    operation works on implicit accumulator"
   [mnemonic op-fn
    {carry? :add-carry
     carry-test :carry-test
     setn :setn
     store? :store
     set-carry :set-carry
-    by-one :by-one}]
+    by-one :by-one
+    implicit :implicit}]
   (let [[x y r1 r2 msbit src is-8bit] (repeatedly gensym)
-        dest (if by-one src (gensym))
+        dest (cond
+               by-one src
+               implicit accumulator
+               :else (gensym))
         src (if by-one {:mode :imm :od 1} src)]
-    `(defop ~mnemonic [~@(when-not by-one `(~dest)) ~src]
+    `(defop ~mnemonic [~@(when-not (or by-one implicit) `(~dest)) ~src]
        (dosync
         ;; Compute result.
         (let [~x (read-val ~dest)
               ~y (read-val ~src)
               ~is-8bit (reg-8bit? (:od ~dest))
               ~msbit (if ~is-8bit 7 15)
-              ~r1 (~op-fn ~x ~(if carry?
-                                `(~op-fn ~y (if (test-flag :c) 1 0))
-                                y))
+              ~r1 (~op-fn ~x ~y ~(if carry?
+                                   `(if (test-flag :c) 1 0)
+                                   0))
               ~r2 (reg-wrap (:od ~dest) ~r1)]
 
           ;; Set flags.
@@ -146,19 +151,19 @@
 
 (def accumulator {:mode :direct :od :a})
 
-(defarithop :add unchecked-add
+(defarithop :add +
   {:set-carry true, :carry-test :add, :store true})
-(defarithop :adc unchecked-add
+(defarithop :adc +
   {:set-carry true, :carry-test :add, :add-carry true, :store true})
-(defarithop :sub unchecked-subtract
-  {:set-carry true, :carry-test :sub, :setn true, :store true})
-(defarithop :sbc unchecked-subtract
+(defarithop :sub -
+  {:set-carry true, :carry-test :sub, :setn true, :store true :implicit true})
+(defarithop :sbc -
   {:set-carry true, :carry-test :sub, :setn true, :add-carry true, :store true})
-(defarithop :cp  unchecked-subtract
-  {:set-carry true, :carry-test :sub, :setn true, :add-carry true, :store false})
-(defarithop :inc unchecked-add
+(defarithop :cp  -
+  {:set-carry true, :carry-test :sub, :setn true, :add-carry true, :store false :implicit true})
+(defarithop :inc +
   {:set-carry false, :carry-test :add, :store true, :in-place true})
-(defarithop :dec unchecked-subtract
+(defarithop :dec -
   {:set-carry false, :carry-test :sub, :store true, :in-place true})
 
 (defop :neg []
@@ -185,7 +190,6 @@
    (toggle-flag :c)
    (reset-flag :n)))
 
-;; TODO write tests from assembly manual
 
 (defmacro deflogop
   "Convenience to define logical operations."

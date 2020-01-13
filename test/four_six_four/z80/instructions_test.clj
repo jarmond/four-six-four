@@ -69,6 +69,20 @@
                      "ld hl, 6666h"
                      "ld (hl), 10h"
                      "adc a, (hl)"]
-                    {:acc 0x27})
-    )))
+                    {:acc 0x27}))
+    (testing "SUB"
+      (test-program ["ld a, 29h"
+                     "ld d, 11h"
+                     "sub d"]
+                    {:acc 0x18}))
+    (testing "SBC"
+      (test-program ["ld a, 16h"
+                     "scf"
+                     "ld hl, 3433h"
+                     "ld (hl), 05h"
+                     "sbc a, (hl)"]
+                    {:acc 0x10}))
+
+
+      ))
 
