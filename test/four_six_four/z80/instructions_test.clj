@@ -10,7 +10,6 @@
 (defn z80-fixture [f]
   (binding [*z80* (make-z80)]
     (reset)
-    (println "Z80 reset")
     (f)))
 
 (use-fixtures :each z80-fixture)
@@ -21,8 +20,9 @@
   (reduce (fn [m k]
             (assoc m k (case k
                          :acc (read-reg :a)
-                         :set-flags (keep #(when (test-flag %) %) flags)
-                         :reset-flags (keep #(when-not (test-flag %) %) flags))))
+                         :set-flags (into #{} (keep #(when (test-flag %) %) (keys flags)))
+                         :reset-flags (into #{} (keep #(when-not (test-flag %) %) (keys flags)))
+                         (read-reg k))))
           {}
           (keys expected)))
 
@@ -82,6 +82,19 @@
                      "ld (hl), 05h"
                      "sbc a, (hl)"]
                     {:acc 0x10}))
+    (testing "CP"
+      (test-program ["ld a, 63h"
+                     "ld hl, 6000h"
+                     "ld (6000h), 60h"
+                     "cp (hl)"]
+                    {:reset-flags #{:pv :z :s :c :h}}))
+    (testing "INC"
+      (test-program ["ld d, 28h"
+                     "inc d"]
+                    {:d 0x29}))
+    )
+
+  (testing "Logical"
     (testing "AND"
       (test-program ["ld b, 7bh"
                      "ld a, c3h"
@@ -92,5 +105,10 @@
                      "ld a, 12h"
                      "or h"]
                     {:acc 0x5a}))
-      ))
+    (testing "XOR"
+      (test-program ["ld a, 96h"
+                     "xor 5dh"]
+                    {:acc 0xcb})))
+  
+  )
 

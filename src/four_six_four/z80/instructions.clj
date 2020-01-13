@@ -119,13 +119,12 @@
         dest (cond
                by-one src
                implicit accumulator
-               :else (gensym))
-        src (if by-one {:mode :imm :od 1} src)]
+               :else (gensym))]
     `(defop ~mnemonic [~@(when-not (or by-one implicit) `(~dest)) ~src]
        (dosync
         ;; Compute result.
         (let [~x (read-val ~dest)
-              ~y (read-val ~src)
+              ~y ~(if by-one 1 `(read-val ~src))
               ~is-8bit (reg-8bit? (:od ~dest))
               ~msbit (if ~is-8bit 7 15)
               ~r1 (~op-fn ~x ~y ~(if carry?
@@ -138,13 +137,13 @@
           ~(when set-carry
              `(cond-flag ~(case carry-test
                             :add `(bit-test ~r1 (inc ~msbit))
-                            :sub `(>= ~x ~y))
+                            :sub `(>= ~y ~x))
                          :c));        Carry flag
           (when (or ~is-8bit ~carry?) ;       Only 8-bit instructions, ADC and SBC set these.
             (when ~is-8bit
               (cond-flag ~(case carry-test
                             :add `(bit-test ~r1 (inc (bit-shift-right~ msbit 1)))
-                            :sub `(>= (low-nib ~x) (low-nib ~y)))
+                            :sub `(>= (low-nib ~y) (low-nib ~x)))
                          :h))
             (cond-flag (reg-overflow (:od ~dest) ~r1) :pv) ; Overflow flag
             (cond-flag (bit-test ~r2 ~msbit) :s);            Sign flag
@@ -165,9 +164,9 @@
 (defarithop :cp  -
   {:set-carry true, :carry-test :sub, :setn true, :add-carry true, :store false :implicit true})
 (defarithop :inc +
-  {:set-carry false, :carry-test :add, :store true, :in-place true})
+  {:set-carry false, :carry-test :add, :store true, :by-one true})
 (defarithop :dec -
-  {:set-carry false, :carry-test :sub, :store true, :in-place true})
+  {:set-carry false, :carry-test :sub, :store true, :by-one true})
 
 (defop :neg []
   (dosync
