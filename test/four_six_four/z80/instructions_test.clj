@@ -3,7 +3,7 @@
             [four-six-four.z80.control :refer [execute-program]]
             [four-six-four.z80.vm
              :refer
-             [*z80* make-z80 read-reg reset flags set-flag test-flag]]
+             [*z80* make-z80 read-reg reset flags set-flag test-flag print-z80]]
             [four-six-four.z80.parser :refer [parse-assembly]]
             [clojure.string :as str]))
 
@@ -14,14 +14,6 @@
     (f)))
 
 (use-fixtures :each z80-fixture)
-
-#_(defn get-state
-  "Return accumulator and flags."
-  ([]
-   {:acc (read-reg :a)})
-  ([flags]
-   (merge (get-state) {:flags (->> (map test-flag flags)
-                                   (zipmap flags))})))
 
 (defn get-state
   "Return state to match expected."
@@ -72,7 +64,7 @@
                      "add a, (iy+5h)"]
                     {:acc 0x33}))
     (testing "ADC"
-      (test-program ["ld a, 16"
+      (test-program ["ld a, 16h"
                      "scf"
                      "ld hl, 6666h"
                      "ld (hl), 10h"
