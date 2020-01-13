@@ -47,8 +47,8 @@
    (cl-format print?
               (str "#Z80[~:[H~;R~]@~4,'0x~%"
                    "    mem size ~:d crc32 ~8,'0x~%"
-                   "    reg A  F  B  C  D  E  H  L  IX IY  ~%"
-                   "        ~{~2,'0x ~}~%"
+                   "    reg A  F  B  C  D  E  H  L  IX   IY~%"
+                   "        ~{~2,'0x ~}~{~4,'0x ~}~%"
                    "    alt A  F  B  C  D  E  H  L~%"
                    "        ~{~2,'0x ~}~%"
                    "    flags C  N  PV H  Z  S~%"
@@ -58,7 +58,8 @@
               @(:program-counter *z80*)
               +memory-size+
               (crc32 @(:memory *z80*))
-              (map read-reg [:a :f :b :c :d :e :h :l :ix :iy])
+              (map read-reg [:a :f :b :c :d :e :h :l])
+              (map read-reg [:ix :iy])
               (mapcat #(as-> (read-reg %) v [(high-byte v) (low-byte v)]) [:af' :bc' :de' :hl'])
               (map test-flag [:c :n :pv :h :z :s]))))
 

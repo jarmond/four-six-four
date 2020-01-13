@@ -21,9 +21,9 @@
     imm = number|identifier
     direct = register
     jpcond = flag
-    indirect = <'('> expression <')'>
+    indirect = <'('> (location | expression) <')'>
 
-    <expression> = location | location operator (number|identifier)
+    expression = location <space>? operator <space>? (number|identifier)
     <operator> = '+'|'-'
     <location> = register / identifier / number
     register = 'a'|'b'|'c'|'d'|'e'|'f'|'hl'|'ix'|'iy'|'af'|'bc'|'de'
@@ -42,14 +42,29 @@
     comment = #';.*'
     "))
 
+(declare expr->ir)
+(defn val->ir
+  [[type val :as operand]]
+  (case type
+    :register (keyword val)
+    :flag (keyword val)
+    :hex (Long/parseLong val 16)
+    :dec (Long/parseLong val)
+    :identifier val
+    :expression (expr->ir operand)))
+
+(defn expr->ir
+  [[expr loc operator val]]
+  (let [loc-ir (val->ir loc)
+        val-ir (val->ir val)
+        op-fn (-> operator symbol resolve)]
+    (if (number? loc-ir)
+      (op-fn loc-ir val-ir)      ; eval constant expr
+      [loc-ir (op-fn val-ir)]))) ; bake operator into const value
+
 (defn operand->ir
-  [[mode [type val :as od]]]
-  {:mode mode :od (case type
-                    :register (keyword val)
-                    :flag (keyword val)
-                    :hex (Long/parseLong val 16)
-                    :dec (Long/parseLong val)
-                    :identifier val)})
+  [[mode od]]
+  {:mode mode :od (val->ir od)})
 
 (defn statement->ir
   [[stmt & nodes]]

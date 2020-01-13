@@ -44,7 +44,8 @@
 (defn resolve-indirect [operand]
   (cond
     (keyword? operand) (read-val {:mode :direct :od operand})
-    (vector? operand) (+ (resolve-indirect (first operand)) (second operand))
+    (vector? operand) (let [[loc val] operand]
+                        (+ (read-val {:mode :direct :od loc}) val))
     :else operand))
 
 ;; TODO handle bit cases?

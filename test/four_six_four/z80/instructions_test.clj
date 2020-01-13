@@ -36,11 +36,13 @@
 
 
 (defmacro test-program
-  [program expected]
+  [program expected & body]
   (let [asm (if (vector? program) (str/join "\n" program) program)
         msg (if (vector? program) (last program) program)]
     `(let [ast# (parse-assembly ~asm)]
+       (reset)
        (execute-program ast#)
+       ~@body
        (is (= ~expected (get-state ~expected)) ~msg))))
 
 

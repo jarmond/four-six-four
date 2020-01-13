@@ -634,11 +634,6 @@
                           :arg2 operand2
                           :argword (when operands (le-bytes->int operands))})
 
-       ;; Combine operands into 16-bit value,
-       (postwalk (fn [x]
-                   (if (and (vector? x) (every? number? x))
-                     (le-bytes->int x)
-                     x)))
 
        ;; Two's complement IX/Y offsets.
        (postwalk (fn [x]
