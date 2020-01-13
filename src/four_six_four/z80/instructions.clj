@@ -22,7 +22,10 @@
 (defmulti operation (fn [instr & args] (:op instr)))
 
 (defmethod operation :default [instr]
-  (log/warn "unknown instruction" (name (:op instr)) "dest" (:dest instr) "src" (:src instr)))
+  (log/warn (cl-format false "unknown instruction ~a dest ~a src ~a"
+                       (some-> (:op instr) name)
+                       (:dest instr)
+                       (:src instr))))
 
 (defmacro defop
   "Define instruction operation. Requires a `dispatch-val` vector of op keyword,

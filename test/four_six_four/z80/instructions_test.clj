@@ -87,6 +87,10 @@
                      "ld a, c3h"
                      "and b"]
                     {:acc 0x43}))
-
+    (testing "OR"
+      (test-program ["ld h, 48h"
+                     "ld a, 12h"
+                     "or h"]
+                    {:acc 0x5a}))
       ))
 

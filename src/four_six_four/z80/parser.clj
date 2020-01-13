@@ -26,7 +26,7 @@
     expression = location <space>? operator <space>? (number|identifier)
     <operator> = '+'|'-'
     <location> = register / identifier / number
-    register = 'a'|'b'|'c'|'d'|'e'|'f'|'hl'|'ix'|'iy'|'af'|'bc'|'de'
+    register = 'a'|'b'|'c'|'d'|'e'|'f'|'h'|'l'|'hl'|'ix'|'iy'|'af'|'bc'|'de'
     flag = 'nz'|'z'|'nc'|'c'|'po'|'pe'|'p'|'m'
     identifier = alpha|'$'
     <number> = dec|hex
