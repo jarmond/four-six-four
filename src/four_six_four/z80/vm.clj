@@ -2,7 +2,7 @@
   (:require [clojure.pprint :refer [cl-format]]
             [clojure.tools.logging :as log]
             [four-six-four.numbers :refer :all]
-            [four-six-four.utils :refer [nilmap]]))
+            [four-six-four.utils :refer [nilmap crc32]]))
 
 ;;;; Z80 emulation
 
@@ -10,8 +10,7 @@
 
 ;;; Config
 
-;(defonce +memory-size+ (* 1024 64))
-(def +memory-size+ 32)
+(defonce +memory-size+ (* 1024 64))
 
 ;;; State
 (def ^:dynamic *z80*)
@@ -40,6 +39,32 @@
                   :af' :bc' :de' :hl']))
     :memory (ref nil)}))
 
+(defn print-z80
+  ([print? z80]
+   (binding [*z80* z80]
+     (print-z80 print?)))
+  ([print?]
+   (cl-format print?
+              (str "#Z80[~:[H~;R~]@~4,'0x~%"
+                   "    mem size ~:d crc32 ~8,'0x~%"
+                   "    reg A  F  B  C  D  E  H  L  IX IY  ~%"
+                   "        ~{~2,'0x ~}~%"
+                   "    alt A  F  B  C  D  E  H  L~%"
+                   "        ~{~2,'0x ~}~%"
+                   "    flags C  N  PV H  Z  S~%"
+                   "          ~{~:[0~;1~]  ~}~%"
+                   "]~%")
+              @(:running? *z80*)
+              @(:program-counter *z80*)
+              +memory-size+
+              (crc32 @(:memory *z80*))
+              (map read-reg [:a :f :b :c :d :e :h :l :ix :iy])
+              (mapcat #(as-> (read-reg %) v [(high-byte v) (low-byte v)]) [:af' :bc' :de' :hl'])
+              (map test-flag [:c :n :pv :h :z :s]))))
+
+(defmethod clojure.core/print-method Z80 [x ^java.io.Writer writer]
+  (.write writer (print-z80 false x)))
+
 
 (defn reset []
   (dosync
@@ -48,7 +73,7 @@
    (ref-set (:iff *z80*) [true true])
    (commute (:registers *z80*) #(into {} (for [k (keys %)] [k 0])))
    (ref-set (:memory *z80*) (vec (repeat +memory-size+ 0))))
-  *z80*)
+  nil)
 
 ;;; Interrupts
 

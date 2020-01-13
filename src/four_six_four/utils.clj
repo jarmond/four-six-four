@@ -21,3 +21,11 @@
   (if (coll? form)
     (some true? (map (partial walk-member val) form))
     (= val form)))
+
+(defn crc32
+  "Compute CRC-32"
+  [xs]
+  (let [arr (byte-array xs)
+        crc (java.util.zip.CRC32.)]
+    (. crc update arr 0 (count arr))
+    (. crc getValue)))

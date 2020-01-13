@@ -8,15 +8,19 @@
 
 (defn format-bin
   ([x]
-   (cl-format nil "~b" x))
+   (when x
+     (cl-format nil "~b" x)))
   ([w x]
-   (cl-format nil "~v,'0b" w x)))
+   (when x
+     (cl-format nil "~v,'0b" w x))))
 
 (defn format-hex
   ([x]
-   (cl-format nil "~x" x))
+   (when x
+     (cl-format nil "~x" x)))
   ([w x]
-   (cl-format nil "~v,'0x" w x)))
+   (when x
+     (cl-format nil "~v,'0x" w x))))
 
 (defn digit->int [c]
   (- (int c) 48))
