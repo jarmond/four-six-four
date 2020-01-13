@@ -37,24 +37,44 @@
 
 (defmacro test-program
   [program expected]
-  `(let [ast# (parse-assembly ~program)
-         msg# (-> ~program str/split-lines last str/trim)]
-     (execute-program ast#)
-     (is (= ~expected (get-state ~expected)) msg#)))
+  (let [asm (if (vector? program) (str/join "\n" program) program)
+        msg (if (vector? program) (last program) program)]
+    `(let [ast# (parse-assembly ~asm)]
+       (execute-program ast#)
+       (is (= ~expected (get-state ~expected)) ~msg))))
 
 
 (deftest single-op-test
   (testing "Arithmetic"
     (testing "ADD"
-      (test-program " ld a, 0x44\n ld c, 0x11\n add a, c"
+      (test-program ["ld a, 44h"
+                     "ld c, 11h"
+                     "add a, c"]
                     {:acc 0x55})
-      (test-program " ld a, 0x23\n  add a, 0x33"
+      (test-program ["ld a, 23h"
+                     "add a, 33h"]
                     {:acc 0x56})
-      (test-program " ld a, 0xA0\n ld hl, 0x0A\n ld (0x0A), 0x08\n add a, (hl)"
+      (test-program ["ld a, A0h"
+                     "ld hl, 0Ah"
+                     "ld (0Ah), 08h"
+                     "add a, (hl)"]
                     {:acc 0xA8})
-      (test-program " ld a, 0x11\n ld ix, 0x05\n ld (0x05), 0x22\n add a, (ix+5)"
+      (test-program ["ld a, 11h"
+                     "ld ix, 1000h"
+                     "ld (1005h), 22h"
+                     "add a, (ix+5h)"]
                     {:acc 0x33})
-      (test-program " ld a, 0x11\n ld iy, 0x05\n ld (0x05), 0x22\n add a, (iy+5)"
-                    {:acc 0x33})
+      (test-program ["ld a, 11h"
+                     "ld iy, 1000h"
+                     "ld (1005h), 22h"
+                     "add a, (iy+5h)"]
+                    {:acc 0x33}))
+    (testing "ADC"
+      (test-program ["ld a, 16"
+                     "scf"
+                     "ld hl, 6666h"
+                     "ld (hl), 10h"
+                     "adc a, (hl)"]
+                    {:acc 0x27})
     )))
 

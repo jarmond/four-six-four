@@ -38,7 +38,7 @@ loop:   ld      a,b         ;Test BC,
 
 
 (def bubble-sort
-  (let [DATA [0x26 0x00]
+  (let [DATA [0x2600]
         FLAG 0]
     {:url "Zilog_Z-80_CPU_Technical_Manual.pdf?page=73"
      :source "
