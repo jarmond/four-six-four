@@ -211,7 +211,8 @@
         ~(when half
            '(set-flag :h)
            '(reset-flag :h))
-        (cond-flag (bit-test r# 8) :s)))));           Sign flag
+        (cond-flag (bit-test r# 8) :s);           Sign flag
+        (write-val accumulator r#)))))
 
 (deflogop :and bit-and {:half true})
 (deflogop :or  bit-or  {:half false})

@@ -82,7 +82,11 @@
                      "ld (hl), 05h"
                      "sbc a, (hl)"]
                     {:acc 0x10}))
-
+    (testing "AND"
+      (test-program ["ld b, 7bh"
+                     "ld a, c3h"
+                     "and b"]
+                    {:acc 0x43}))
 
       ))
 
