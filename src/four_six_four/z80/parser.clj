@@ -9,7 +9,8 @@
   (insta/parser
    "<program> = {statement? (<space> | <comment>)? <newline>}
 
-    statement = (label <':'>)? <space> op (<space> arguments)? <space?> <comment?>
+    statement = (label <':'>)? <space> instr | instr
+    <instr> = op (<space> arguments)? <space?> <comment?>
     <arguments> = src | dest <space?> <','> <space?> src
 
     (* keys matching the IR *)
