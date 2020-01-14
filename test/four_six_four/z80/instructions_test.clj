@@ -3,7 +3,7 @@
             [four-six-four.z80.control :refer [execute-program]]
             [four-six-four.z80.vm
              :refer
-             [*z80* make-z80 read-reg reset flags set-flag test-flag print-z80]]
+             [*z80* make-z80 read-reg read-mem reset flags set-flag test-flag print-z80]]
             [four-six-four.z80.parser :refer [parse-assembly]]
             [clojure.string :as str]))
 
@@ -17,14 +17,15 @@
 (defn get-state
   "Return state to match expected."
   [expected]
-  (reduce (fn [m k]
+  (reduce (fn [m [k v]]
             (assoc m k (case k
                          :acc (read-reg :a)
                          :set-flags (into #{} (keep #(when (test-flag %) %) (keys flags)))
                          :reset-flags (into #{} (keep #(when-not (test-flag %) %) (keys flags)))
+                         :mem [(first v) (read-mem (second v))]
                          (read-reg k))))
           {}
-          (keys expected)))
+          expected))
 
 
 (defmacro test-program
@@ -92,6 +93,12 @@
       (test-program ["ld d, 28h"
                      "inc d"]
                     {:d 0x29}))
+    (testing "INC"
+      (test-program ["ld ix, 2020h"
+                     "ld (2030h), 34h"
+                     "inc (ix+10h)"]
+                    {:mem [0x2030 0x35]}))
+
     )
 
   (testing "Logical"
