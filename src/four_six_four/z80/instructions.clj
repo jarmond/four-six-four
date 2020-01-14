@@ -68,7 +68,8 @@
 (defn reg-8bit?
   "True if `reg` is an 8-bit register."
   [reg]
-  (= 1 (count (name reg))))
+  (and (keyword? reg)
+       (= 1 (count (name reg)))))
 
 (defn reg-wrap
   "Wrap value to register size to simulate overflow for 8 or 16 bit registers."
