@@ -3,12 +3,12 @@
             [four-six-four.z80.control :refer [execute-program]]
             [four-six-four.z80.vm
              :refer
-             [*z80* make-z80 read-reg read-mem reset flags set-flag test-flag print-z80]]
+             [*z80* make-z80 read-reg read-mem reset flags set-flag test-flag print-z80 with-z80]]
             [four-six-four.z80.parser :refer [parse-assembly]]
             [clojure.string :as str]))
 
 (defn z80-fixture [f]
-  (binding [*z80* (make-z80)]
+  (with-z80 (make-z80)
     (reset)
     (f)))
 
@@ -22,19 +22,24 @@
                          :acc (read-reg :a)
                          :set-flags (into #{} (keep #(when (test-flag %) %) (keys flags)))
                          :reset-flags (into #{} (keep #(when-not (test-flag %) %) (keys flags)))
-                         :mem [(first v) (read-mem (second v))]
+                         :mem [(first v) (read-mem (first v))]
                          (read-reg k))))
           {}
           expected))
 
+(defn run-test-program
+  [program]
+  (let [asm (if (vector? program) (str/join "\n" program) program)]
+    (let [ast (parse-assembly asm)]
+      (reset)
+      (execute-program ast))))
 
 (defmacro test-program
   [program expected & body]
   (let [asm (if (vector? program) (str/join "\n" program) program)
         msg (if (vector? program) (last program) program)]
-    `(let [ast# (parse-assembly ~asm)]
-       (reset)
-       (execute-program ast#)
+    `(do
+       (run-test-program ~asm)
        ~@body
        (is (= ~expected (get-state ~expected)) ~msg))))
 
@@ -119,3 +124,10 @@
   
   )
 
+
+(defn run-test-program-standalone
+  [program]
+  (let [asm (if (vector? program) (str/join "\n" program) program)]
+    (z80-fixture (fn []
+                   (run-test-program asm)
+                   *z80*))))

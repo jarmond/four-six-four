@@ -39,9 +39,15 @@
                   :af' :bc' :de' :hl']))
     :memory (ref nil)}))
 
+(defmacro with-z80
+  "Convenience for binding *z80* to a value."
+  [z80 & body]
+  `(binding [*z80* ~z80]
+     ~@body))
+
 (defn print-z80
   ([print? z80]
-   (binding [*z80* z80]
+   (with-z80 z80
      (print-z80 print?)))
   ([print?]
    (cl-format print?

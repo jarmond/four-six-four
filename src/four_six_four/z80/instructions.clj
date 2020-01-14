@@ -73,14 +73,14 @@
 
 (defn reg-wrap
   "Wrap value to register size to simulate overflow for 8 or 16 bit registers."
-  [reg x]
-  (bit-and x (if (reg-8bit? reg) 0xFF 0xFFFF)))
+  [is-8bit? x]
+  (bit-and x (if is-8bit? 0xFF 0xFFFF)))
 
 (defn reg-overflow
   "True if `x` is not a valid two's complement number for register `reg`."
-  [reg x]
+  [is-8bit? x]
   (not
-   (if (reg-8bit? reg)
+   (if is-8bit?
      (<= -0x80 x 0x7F)
      (<= -0x8000 x 0x7FFF))))
 
@@ -131,7 +131,7 @@
               ~r1 (~op-fn ~x ~y ~(if carry?
                                    `(if (test-flag :c) 1 0)
                                    0))
-              ~r2 (reg-wrap (:od ~dest) ~r1)]
+              ~r2 (reg-wrap ~is-8bit ~r1)]
 
           ;; Set flags.
           ~(if setn '(set-flag :n) '(reset-flag :n))
@@ -143,10 +143,10 @@
           (when (or ~is-8bit ~carry?) ;       Only 8-bit instructions, ADC and SBC set these.
             (when ~is-8bit
               (cond-flag ~(case carry-test
-                            :add `(bit-test ~r1 (inc (bit-shift-right~ msbit 1)))
+                            :add `(bit-test ~r1 4)
                             :sub `(>= (low-nib ~y) (low-nib ~x)))
                          :h))
-            (cond-flag (reg-overflow (:od ~dest) ~r1) :pv) ; Overflow flag
+            (cond-flag (reg-overflow ~is-8bit ~r1) :pv) ; Overflow flag
             (cond-flag (bit-test ~r2 ~msbit) :s);            Sign flag
             (cond-flag (zero? ~r2) :z)) ;                    Zero flag
 
