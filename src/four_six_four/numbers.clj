@@ -71,11 +71,16 @@
   (unsigned-bit-shift-right x 8))
 
 (defn twos-comp
-  "Interpret unsigned number `x` of size `bits` as two's complement."
-  [bits x]
-  (let [mask (bit-shift-left 1 (dec bits))]
-    (+ (bit-and x (bit-not mask))
-       (- (bit-and x mask)))))
+  "Two's complement unsigned byte `x`."
+  [x]
+  (let [mask (bit-shift-left 1 7)]
+    (- (bit-and x mask)
+       (bit-and 0xFF (bit-and x (bit-not mask))))))
+
+(defn ones-comp
+  "One's complement unsigned byte `x`."
+  [x]
+  (bit-xor 0xFF x))
 
 (defn digit? [c] (<= (int \0) (int c) (int \9)))
 

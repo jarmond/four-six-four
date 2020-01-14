@@ -15,13 +15,14 @@
 
     (* keys matching the IR *)
     op = alpha
-    dest = direct/jpcond/indirect
+    dest = direct/jpcond/bit/indirect
     src = direct/jpcond/imm/indirect
 
     imm = number|identifier
     direct = register
     jpcond = flag
     indirect = <'('> (location | expression) <')'>
+    bit = bitdigit
 
     expression = location <space>? operator <space>? (number|identifier)
     <operator> = '+'|'-'
@@ -37,6 +38,7 @@
     dec = digits
     hex = hexdigits <'h'> | <'0x'> hexdigits
     <digits> = #'-?[0-9]+'
+    bitdigit = #'[0-7]'
     <hexdigits> = #'-?[0-9a-f]+'
     <alpha> = #'[a-z]+'
     comment = #';.*'
@@ -50,6 +52,7 @@
     :flag (keyword val)
     :hex (Long/parseLong val 16)
     :dec (Long/parseLong val)
+    :bitdigit (Long/parseLong val)
     :identifier val
     :expression (expr->ir operand)))
 

@@ -465,21 +465,21 @@
    ;; SET b, r
    {0xCB
     (generic-pattern-reg2 (str pat "bbbrrr") bit-map opcode-reg
-                          {:op mnemonic :src {:mode :direct :od :reg2 :bit :reg1}})}
+                          {:op mnemonic :src {:mode :direct :od :reg2} :dest {:mode :bit :od :reg1}})}
    ;; SET b, (HL)
    {0xCB
     (generic-pattern-reg (str pat "bbb110") bit-map
-                         {:op mnemonic :src {:mode :indirect :od :hl :bit :reg}})}
+                         {:op mnemonic :src {:mode :indirect :od :hl} :dest {:mode :bit :od :reg}})}
    ;; SET b, (IX+d)
    {0xDD
     {0xCB
      (generic-pattern-reg (str pat "bbb110") bit-map
-                          {:op mnemonic :src {:mode :indirect :od [:ix :arg1] :bit :reg}})}}
+                          {:op mnemonic :src {:mode :indirect :od [:ix :arg1]} :dest {:mode :bit :od :reg}})}}
    ;; RLC (IY+d)
    {0xFD
     {0xCB
      (generic-pattern-reg (str pat "bbb110") bit-map
-                          {:op mnemonic :src {:mode :indirect :od [:iy :arg1] :bit :reg}})}}))
+                          {:op mnemonic :src {:mode :indirect :od [:iy :arg1]} :dest {:mode :bit :od :reg}})}}))
 
 (def bit-set-group
   "Table 7.0-8: Bit set, reset and test group."
@@ -488,15 +488,15 @@
     (merge-decoders
      ;; BIT b, r
      (generic-pattern-reg2 "01bbbrrr" bit-map opcode-reg
-                           {:op :bit :src {:mode :direct :od :reg2 :bit :reg1}})
+                           {:op :bit :dest {:mode :bit :od :reg1} :src {:mode :direct :od :reg2}})
      ;; BIT b, [HL]
      (generic-pattern-reg "01bbb110" bit-map
-                          {:op :bit :src {:mode :indirect :od :hl :bit :reg}}))}
+                          {:op :bit :dest {:mode :bit :od :reg} :src {:mode :indirect :od :hl}}))}
    ;; BIT b, [IX+d]
    {0xDD
     {0xCB
      (generic-pattern-reg "01bbb110" bit-map
-                          {:op :bit :src {:mode :indirect :od [:ix :arg1] :bit :reg}})}}
+                          {:op :bit :dest {:mode :bit :od :reg} :src {:mode :indirect :od [:ix :arg1]}})}}
 
    (gen-set-reset-group :set "11")
    (gen-set-reset-group :res "10")))
@@ -517,9 +517,9 @@
     ;; JR NC, e
     0x30 {:op :jr :src {:mode :imm :od :arg1} :dest {:mode :jpcond :od :nc}}
     ;; JR Z, e
-    0x28 {:op :jr :src {:mode :imm :od :arg1} :dest {:mode  :jpcond :od :z}}
+    0x28 {:op :jr :src {:mode :imm :od :arg1} :dest {:mode :jpcond :od :z}}
     ;; JR NZ, e
-    0x20 {:op :jr :src {:mode :imm :od :arg1} :dest {:mode  :jpcond :od :nz}}
+    0x20 {:op :jr :src {:mode :imm :od :arg1} :dest {:mode :jpcond :od :nz}}
     ;; JP (HL) NB this does PC <- HL, so it's really using direct address from reg.
     0xE9 {:op :jp :src {:mode :direct :od :hl}}}
    ;; JP (I?)
@@ -639,7 +639,7 @@
        (postwalk (fn [x]
                    (if (and (vector? x))
                      (if-let [ix (#{:ix :iy} (first x))]
-                       [ix (twos-comp 8 (second x))]
+                       [ix (twos-comp (second x))]
                        x)
                      x)))))
 

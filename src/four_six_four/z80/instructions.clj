@@ -3,7 +3,7 @@
             [clojure.tools.logging :as log]
             [four-six-four.numbers
              :refer
-             [low-nib pop-count-byte rotate-left rotate-right]]
+             [low-nib pop-count-byte rotate-left rotate-right ones-comp]]
             [four-six-four.z80.vm
              :refer
              [cond-flag
@@ -12,10 +12,16 @@
               reset-flag
               set-flag
               test-flag
+              set-iff
+              reset-iff
               test-iff
+              set-im
+              set-pc
+              inc-pc
               toggle-flag
               write-mem
-              write-reg]]))
+              write-reg
+              toggle-running]]))
 
 ;;; Instructions
 
@@ -41,7 +47,8 @@
     `(defmethod operation ~dispatch-val [~instr]
        (let [~@(when dest `(~dest (:dest ~instr)))
              ~@(when src `(~src (:src ~instr)))]
-         ~@body))))
+         (dosync 
+          ~@body)))))
 
 (declare read-val)
 (defn resolve-indirect [operand]
@@ -76,7 +83,7 @@
   [is-8bit? x]
   (bit-and x (if is-8bit? 0xFF 0xFFFF)))
 
-(defn reg-overflow
+(defn reg-overflow?
   "True if `x` is not a valid two's complement number for register `reg`."
   [is-8bit? x]
   (not
@@ -97,7 +104,8 @@
        (cond-flag (bit-test val 7) :s)))))
 
 
-;;; Arithmetic and logical group.
+;;; Arithmetic group.
+(def accumulator {:mode :direct :od :a})
 
 (defmacro defarithop
   "Convenience to define similar arithmetic operations. Options in map are
@@ -122,37 +130,35 @@
                implicit accumulator
                :else (gensym))]
     `(defop ~mnemonic [~@(when-not (or by-one implicit) `(~dest)) ~src]
-       (dosync
-        ;; Compute result.
-        (let [~x (read-val ~dest)
-              ~y ~(if by-one 1 `(read-val ~src))
-              ~is-8bit (reg-8bit? (:od ~dest))
-              ~msbit (if ~is-8bit 7 15)
-              ~r1 (~op-fn ~x ~y ~(if carry?
-                                   `(if (test-flag :c) 1 0)
-                                   0))
-              ~r2 (reg-wrap ~is-8bit ~r1)]
+       ;; Compute result.
+       (let [~x (read-val ~dest)
+             ~y ~(if by-one 1 `(read-val ~src))
+             ~is-8bit (reg-8bit? (:od ~dest))
+             ~msbit (if ~is-8bit 7 15)
+             ~r1 (~op-fn ~x ~y ~(if carry?
+                                  `(if (test-flag :c) 1 0)
+                                  0))
+             ~r2 (reg-wrap ~is-8bit ~r1)]
 
-          ;; Set flags.
-          ~(if setn '(set-flag :n) '(reset-flag :n))
-          ~(when set-carry
-             `(cond-flag ~(case carry-test
-                            :add `(bit-test ~r1 (inc ~msbit))
-                            :sub `(>= ~y ~x))
-                         :c));        Carry flag
-          (when (or ~is-8bit ~carry?) ;       Only 8-bit instructions, ADC and SBC set these.
-            (when ~is-8bit
-              (cond-flag ~(case carry-test
-                            :add `(bit-test ~r1 4)
-                            :sub `(>= (low-nib ~y) (low-nib ~x)))
-                         :h))
-            (cond-flag (reg-overflow ~is-8bit ~r1) :pv) ; Overflow flag
-            (cond-flag (bit-test ~r2 ~msbit) :s);            Sign flag
-            (cond-flag (zero? ~r2) :z)) ;                    Zero flag
+         ;; Set flags.
+         ~(if setn '(set-flag :n) '(reset-flag :n))
+         ~(when set-carry
+            `(cond-flag ~(case carry-test
+                           :add `(bit-test ~r1 (inc ~msbit))
+                           :sub `(>= ~y ~x))
+                        :c));        Carry flag
+         (when (or ~is-8bit ~carry?) ;       Only 8-bit instructions, ADC and SBC set these.
+           (when ~is-8bit
+             (cond-flag ~(case carry-test
+                           :add `(bit-test ~r1 4)
+                           :sub `(>= (low-nib ~y) (low-nib ~x)))
+                        :h))
+           (cond-flag (reg-overflow? ~is-8bit ~r1) :pv) ; Overflow flag
+           (cond-flag (bit-test ~r2 ~msbit) :s);            Sign flag
+           (cond-flag (zero? ~r2) :z)) ;                    Zero flag
 
-          ~(when store? `(write-val ~dest ~r2)))))))
+         ~(when store? `(write-val ~dest ~r2))))))
 
-(def accumulator {:mode :direct :od :a})
 
 (defarithop :add +
   {:set-carry true, :carry-test :add, :store true})
@@ -169,59 +175,35 @@
 (defarithop :dec -
   {:set-carry false, :carry-test :sub, :store true, :by-one true})
 
-(defop :neg []
-  (dosync
-   (let [x (read-val accumulator)
-         r (- x)]
-     (cond-flag (zero? r) :z)
-     (cond-flag (reg-overflow :a) :pv)
-     (set-flag :n)
-
-     ;; FIXME Not sure how carry is implemented for NEG. Assuming it is as if A = 0-A
-     (cond-flag (pos? x) :c)
-     (cond-flag (pos? (low-nib x)) :h)
-     (write-val accumulator r))))
-
-(defop :scf []
-  (dosync
-   (set-flag :c)
-   (reset-flag :n)
-   (reset-flag :h)))
-
-(defop :ccf []
-  (dosync
-   (toggle-flag :c)
-   (reset-flag :n)))
-
+;;; Logical operations
 
 (defmacro deflogop
   "Convenience to define logical operations."
   [mnemonic op-fn {half :half}]
   `(defop ~mnemonic [src#]
-     (dosync
-      (let [x# (read-val accumulator)
-            y# (read-val src#)
-            r# (~op-fn x# y#)]
+     (let [x# (read-val accumulator)
+           y# (read-val src#)
+           r# (~op-fn x# y#)]
 
-        (cond-flag (zero? r#) :z)                   ; Zero flag
-        (cond-flag (even? (pop-count-byte r#)) :pv) ; Parity flag
+       (cond-flag (zero? r#) :z)                   ; Zero flag
+       (cond-flag (even? (pop-count-byte r#)) :pv) ; Parity flag
 
-        ;; Constantly reset flags.
-        (reset-flag :c)
-        (reset-flag :n)
+       ;; Constantly reset flags.
+       (reset-flag :c)
+       (reset-flag :n)
 
-        ;; For AND, H is set, otherwise reset.
-        ~(when half
-           '(set-flag :h)
-           '(reset-flag :h))
-        (cond-flag (bit-test r# 8) :s);           Sign flag
-        (write-val accumulator r#)))))
+       ;; For AND, H is set, otherwise reset.
+       ~(when half
+          '(set-flag :h)
+          '(reset-flag :h))
+       (cond-flag (bit-test r# 8) :s);           Sign flag
+       (write-val accumulator r#))))
 
 (deflogop :and bit-and {:half true})
 (deflogop :or  bit-or  {:half false})
 (deflogop :xor bit-xor {:half false})
 
-;; Rotates and shifts
+;;; Rotates and shifts
 
 (defmacro defrotop
   "Convenience to define rotate and shift operations. Options are:
@@ -238,33 +220,32 @@
              :right 7)]
 
     `(defop ~mnemonic [~@(when-not acc? `(~src))]
-       (dosync
-        (let [~x (read-val ~(if acc? accumulator src))
-              ~r (~op-fn ~x)]
-          ;; If a carry instruction, copy new flag, otherwise copy old carry.
-          ~(if carry?
-             `(if (bit-test ~x ~out)
-                (bit-set ~r ~in)
-                (bit-clear ~r ~in))
-             `(if (test-flag :c)
-                (bit-set ~r ~in)
-                (bit-clear ~r ~in)))
+       (let [~x (read-val ~(if acc? accumulator src))
+             ~r (~op-fn ~x)]
+         ;; If a carry instruction, copy new flag, otherwise copy old carry.
+         ~(if carry?
+            `(if (bit-test ~x ~out)
+               (bit-set ~r ~in)
+               (bit-clear ~r ~in))
+            `(if (test-flag :c)
+               (bit-set ~r ~in)
+               (bit-clear ~r ~in)))
 
-          ;; Set carry flag.
-          (cond-flag (bit-test ~x ~out) :c)
+         ;; Set carry flag.
+         (cond-flag (bit-test ~x ~out) :c)
 
-          ;; Set zero and parity flags for non-accumulator operands.
-          ~(when-not acc?
-             `((cond-flag (zero? ~r) :z)
-               (cond-flag (even? (pop-count-byte ~r)) :pv))) ; Parity flag
+         ;; Set zero and parity flags for non-accumulator operands.
+         ~(when-not acc?
+            `((cond-flag (zero? ~r) :z)
+              (cond-flag (even? (pop-count-byte ~r)) :pv))) ; Parity flag
 
-          ;; Constantly reset flags.
-          (reset-flag :h)
-          (reset-flag :n)
-          (cond-flag (bit-test ~r 7) :s) ; Sign flag
+         ;; Constantly reset flags.
+         (reset-flag :h)
+         (reset-flag :n)
+         (cond-flag (bit-test ~r 7) :s) ; Sign flag
 
-          ;; Store value
-          (write-val ~(if acc? accumulator src) ~r))))))
+         ;; Store value
+         (write-val ~(if acc? accumulator src) ~r)))))
 
 (defn rotate-left1 [x]
   (-> (rotate-left x 1)
@@ -295,14 +276,102 @@
 (defrotop :srl  shift-right1  {:lr :right})
 (defrotop :sla  shift-left1   {:lr :left})
 
-;; General-purpose arithmetic
+;;; General-purpose arithmetic
 
 
+(defop :neg []
+  (let [x (read-val accumulator)
+        r (- x)]
+    (cond-flag (zero? r) :z)
+    (cond-flag (reg-overflow? true x) :pv)
+    (set-flag :n)
+    (cond-flag (not (zero? x)) :c)
+    (cond-flag (pos? (low-nib x)) :h)
+    (write-val accumulator r)))
+
+(defop :scf []
+  (set-flag :c)
+  (reset-flag :n)
+  (reset-flag :h))
+
+(defop :ccf []
+  (toggle-flag :c)
+  (reset-flag :n))
 
 (defop :cpl []
-  (dosync
-   (let [a (read-val accumulator)]
-     (write-val accumulator
-                (bit-xor 0xFF a))
-     (set-flag :n)
-     (set-flag :h))))
+  (set-flag :h)
+  (set-flag :n)
+  (-> accumulator read-val ones-comp (write-val accumulator)))
+
+(defop :nop [])
+
+(defop :di []
+  (reset-iff 0)
+  (reset-iff 1))
+
+(defop :ei []
+  (set-iff 0)
+  (set-iff 1))
+
+(defop :halt []
+  (log/info "CPU HALTED")
+  (toggle-running))
+
+(defop :im [src]
+  (set-im (read-val src)))
+
+;;; Bit group
+(defop :bit [dest src]
+  (let [b (read-val dest)
+        x (read-val src)]
+    (cond-flag (bit-test x b) :z)))
+
+(defop :set [dest src]
+  (let [b (read-val dest)
+        x (read-val src)]
+    (write-val dest (bit-set x b))))
+
+(defop :res [dest src]
+  (let [b (read-val dest)
+        x (read-val src)]
+    (write-val dest (bit-clear x b))))
+
+;;; Jump group
+
+(defn test-jpcond [jpcond]
+  (case jpcond
+    :nz (not (test-flag :z))
+    :z  (test-flag :z)
+    :nc (not (test-flag :c))
+    :c  (test-flag :c)
+    :po (not (test-flag :pv))
+    :pe (test-flag :pv)
+    :p  (not (test-flag :pv))
+    :m  (test-flag :pv)))
+
+(defmacro defjumpop
+  "Convenience to define rotate and shift operations. Options are:
+  :accumulator  operate on accumulator
+  :lr           either :left or :right, whether to set carry to msb or lsb"
+  [mnemonic jump-fn]
+  `(defop ~mnemonic [dest# src#]
+     (let [target# (read-val src#)
+           jpcond# (:jpcond dest#)]
+       (when (or (nil? jpcond#) (test-jpcond jpcond#))
+         (~jump-fn target#)))))
+
+
+(defjumpop :jp set-pc)
+(defjumpop :jr inc-pc)
+
+
+(def register-b {:mode :direct :od :b})
+(defop :djnz [src]
+  (let [target (read-val src)
+        b (dec (read-val register-b))]
+    (write-val register-b b)
+    (when (zero? b)
+      (inc-pc target))))
+
+;;; Call and return group
+

@@ -15,12 +15,13 @@
 ;;; State
 (def ^:dynamic *z80*)
 
-(defrecord Z80 [running? program-counter iff registers memory])
+(defrecord Z80 [running? pc iff registers memory])
 (defn make-z80 []
   (map->Z80
    {:running? (ref false)
-    :program-counter (ref nil)
+    :pc (ref nil)
     :iff (ref [true true]) ;; Interrupt enable flip flops
+    :im (ref nil)          ;; Interrupt mode
     :registers (ref
                 (nilmap
                  [;; 16-bit indexes IX, IY
@@ -61,7 +62,7 @@
                    "          ~{~:[0~;1~]  ~}~%"
                    "]~%")
               @(:running? *z80*)
-              @(:program-counter *z80*)
+              @(:pc *z80*)
               +memory-size+
               (crc32 @(:memory *z80*))
               (map read-reg [:a :f :b :c :d :e :h :l])
@@ -76,8 +77,8 @@
 (defn reset []
   (dosync
    (ref-set (:running? *z80*) false)
-   (ref-set (:program-counter *z80*) 0)
-   (ref-set (:iff *z80*) [true true])
+   (ref-set (:pc *z80*) 0)
+   (ref-set (:iff *z80*) [false false])
    (commute (:registers *z80*) #(into {} (for [k (keys %)] [k 0])))
    (ref-set (:memory *z80*) (vec (repeat +memory-size+ 0))))
   nil)
@@ -88,6 +89,17 @@
   {:pre [(<= 0 n 1)]}
   (@(:iff *z80*) n))
 
+(defn set-iff [n]
+  {:pre [(<= 0 n 1)]}
+  (alter (:iff *z80*) update n (constantly true)))
+
+(defn reset-iff [n]
+  {:pre [(<= 0 n 1)]}
+  (alter (:iff *z80*) update n (constantly false)))
+
+(defn set-im [n]
+  {:pre [(<= 0 n 2)]}
+  (ref-set (:im *z80*) n))
 
 ;;; Flags
 
@@ -156,15 +168,15 @@
   ([]
    (inc-pc 1))
   ([n]
-   (alter (:program-counter *z80*) + n)))
+   (alter (:pc *z80*) + n)))
 
 (defn set-pc
   [n]
-  (ref-set (:program-counter *z80*) n))
+  (ref-set (:pc *z80*) n))
 
 (defn read-pc-byte
   []
-  (let [byte (read-mem @(:program-counter *z80*))]
+  (let [byte (read-mem @(:pc *z80*))]
     (inc-pc)
     byte))
 
