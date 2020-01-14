@@ -10,3 +10,4 @@ pom.xml.asc
 /.nrepl-port
 .hgignore
 .hg/
+/src/four_six_four/z80/archive/
