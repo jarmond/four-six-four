@@ -166,6 +166,9 @@
   []
   (commute (:running? *z80*) not))
 
+(defn inc-refresh
+  []
+  (alter (:registers *z80*) update :r inc))
 
 (defn print-z80
   ([print? z80]
