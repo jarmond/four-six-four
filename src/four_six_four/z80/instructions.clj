@@ -3,7 +3,8 @@
             [clojure.tools.logging :as log]
             [four-six-four.numbers
              :refer
-             [low-nib pop-count-byte rotate-left rotate-right ones-comp]]
+             [low-nib pop-count-byte rotate-left rotate-right ones-comp
+             high-byte low-byte two-bytes->int]]
             [four-six-four.z80.vm
              :refer
              [cond-flag
@@ -16,6 +17,7 @@
               reset-iff
               test-iff
               set-im
+              get-pc
               set-pc
               inc-pc
               toggle-flag
@@ -278,6 +280,41 @@
 
 ;;; General-purpose arithmetic
 
+(defn daa-add [high low]
+  (if (test-flag :c)
+    (if (or (test-flag :h) (<= 0xA low 0xF))
+      [0x66 true]
+      [0x60 true])
+    (if (test-flag :h)
+      (if (<= 0 high 9)
+        [0x06 false]
+        [0x66 true])
+      (if (<= 0 low 9)
+        (if (<= 0 high 9)
+          [0 false]
+          [0x60 true])
+        (if (<= 0 high 8)
+          [0x06 false]
+          [0x66 true])))))
+
+(defn daa-sub [high low]
+  (if (test-flag :c)
+    (if (test-flag :h)
+      [0x9A true]
+      [0xFA true])
+    (if (test-flag :h)
+      [0xFA false]
+      [0 false])))
+
+(defop :daa []
+  (let [acc (read-val accumulator)
+        low (low-byte acc)
+        high (high-byte acc)
+        [adj carry] (if (test-flag :n)
+                      (daa-sub high low)
+                      (daa-add high low))]
+    (write-val accumulator (+ acc adj))
+    (cond-flag carry :c)))
 
 (defop :neg []
   (let [x (read-val accumulator)
@@ -349,7 +386,7 @@
     :p  (not (test-flag :pv))
     :m  (test-flag :pv)))
 
-(defmacro defjumpop
+(defmacro defjumpop ;; FIXME check src doesn't go into dest
   "Convenience to define rotate and shift operations. Options are:
   :accumulator  operate on accumulator
   :lr           either :left or :right, whether to set carry to msb or lsb"
@@ -374,4 +411,66 @@
       (inc-pc target))))
 
 ;;; Call and return group
+
+(def stack-pointer {:mode :direct :od :sp})
+(defn push-pc-and-jump
+  [target]
+  (let [pc (get-pc)
+        sp-1 (dec (read-val stack-pointer))
+        sp-2 (dec sp-1)]
+    (write-mem sp-1 (high-byte pc))
+    (write-mem sp-2 (low-byte pc))
+    (write-val stack-pointer sp-2)
+    (set-pc target)))
+
+(defjumpop :call push-pc-and-jump)
+
+(defop :ret [src]
+  (let [jpcond (:jpcond src)]
+    (when (or (nil? jpcond) (test-jpcond jpcond))
+      (let [sp (read-val stack-pointer)
+            sp1 (inc sp)]
+        (set-pc (two-bytes->int (read-mem sp1) (read-mem sp)))
+        (write-val stack-pointer (inc sp1))))))
+
+(defop :reti []
+  (log/warn "STUB: RETI"))
+
+(defop :retn []
+  (log/warn "STUB: RETN"))
+
+(defop :rst [src]
+  (operation :call src))
+
+;;; Input/output group
+
+(defop :in [dest src]
+  (log/warn "STUB IN"))
+
+(defop :ini []
+  (log/warn "STUB INI"))
+
+(defop :inir []
+  (log/warn "STUB INIR"))
+
+(defop :ind [src]
+  (log/warn "STUB IND"))
+
+(defop :indr [src]
+  (log/warn "STUB INDR"))
+
+(defop :out [dest src]
+  (log/warn "STUB OUT"))
+
+(defop :outi []
+  (log/warn "STUB OUTI"))
+
+(defop :outir []
+  (log/warn "STUB OUTIR"))
+
+(defop :outd [src]
+  (log/warn "STUB OUTD"))
+
+(defop :outdr [src]
+  (log/warn "STUB OUTDR"))
 

@@ -78,6 +78,9 @@
         (contains? astmt :src) (update :src operand->ir)
         (contains? astmt :dest) (update :dest operand->ir)))))
 
+(defn ast->ir
+  [ast]
+  (map statement->ir ast))
 
 (defn parse-assembly [source]
   (let [source (str/lower-case (str source "\n"))]

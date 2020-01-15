@@ -46,38 +46,12 @@
   `(binding [*z80* ~z80]
      ~@body))
 
-(defn print-z80
-  ([print? z80]
-   (with-z80 z80
-     (print-z80 print?)))
-  ([print?]
-   (cl-format print?
-              (str "#Z80[~:[H~;R~]@~4,'0x~%"
-                   "    mem size ~:d crc32 ~8,'0x~%"
-                   "    reg A  F  B  C  D  E  H  L  IX   IY~%"
-                   "        ~{~2,'0x ~}~{~4,'0x ~}~%"
-                   "    alt A  F  B  C  D  E  H  L~%"
-                   "        ~{~2,'0x ~}~%"
-                   "    flags C  N  PV H  Z  S~%"
-                   "          ~{~:[0~;1~]  ~}~%"
-                   "]~%")
-              @(:running? *z80*)
-              @(:pc *z80*)
-              +memory-size+
-              (crc32 @(:memory *z80*))
-              (map read-reg [:a :f :b :c :d :e :h :l])
-              (map read-reg [:ix :iy])
-              (mapcat #(as-> (read-reg %) v [(high-byte v) (low-byte v)]) [:af' :bc' :de' :hl'])
-              (map test-flag [:c :n :pv :h :z :s]))))
-
-(defmethod clojure.core/print-method Z80 [x ^java.io.Writer writer]
-  (.write writer (print-z80 false x)))
-
 
 (defn reset []
   (dosync
    (ref-set (:running? *z80*) false)
    (ref-set (:pc *z80*) 0)
+   (ref-set (:im *z80*) 0)
    (ref-set (:iff *z80*) [false false])
    (commute (:registers *z80*) #(into {} (for [k (keys %)] [k 0])))
    (ref-set (:memory *z80*) (vec (repeat +memory-size+ 0))))
@@ -174,6 +148,10 @@
   [n]
   (ref-set (:pc *z80*) n))
 
+(defn get-pc
+  []
+  (@(:pc *z80*)))
+
 (defn read-pc-byte
   []
   (let [byte (read-mem @(:pc *z80*))]
@@ -188,4 +166,31 @@
   []
   (commute (:running? *z80*) not))
 
+
+(defn print-z80
+  ([print? z80]
+   (with-z80 z80
+     (print-z80 print?)))
+  ([print?]
+   (cl-format print?
+              (str "#Z80[~:[H~;R~]@~4,'0x~%"
+                   "    mem size ~:d crc32 ~8,'0x~%"
+                   "    reg A  F  B  C  D  E  H  L  I  R  IX   IY   SP~%"
+                   "        ~{~2,'0x ~}~{~4,'0x ~}~%"
+                   "    alt A  F  B  C  D  E  H  L~%"
+                   "        ~{~2,'0x ~}~%"
+                   "    flags C  N  PV H  Z  S~%"
+                   "          ~{~:[0~;1~]  ~}~%"
+                   "]~%")
+              @(:running? *z80*)
+              @(:pc *z80*)
+              +memory-size+
+              (crc32 @(:memory *z80*))
+              (map read-reg [:a :f :b :c :d :e :h :l :i :r])
+              (map read-reg [:ix :iy :sp])
+              (mapcat #(as-> (read-reg %) v [(high-byte v) (low-byte v)]) [:af' :bc' :de' :hl'])
+              (map test-flag [:c :n :pv :h :z :s]))))
+
+(defmethod clojure.core/print-method Z80 [x ^java.io.Writer writer]
+  (.write writer (print-z80 false x)))
 
