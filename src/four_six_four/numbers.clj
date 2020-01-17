@@ -32,6 +32,11 @@
        (map bit-shift-left xxs (range 0 (* (count xs) 8) 8))
        (reduce bit-or xxs)))
 
+(defn be-bytes->int
+  "Convert sequence of bytes into integer assuming big-endian order."
+  [xs]
+  (le-bytes->int (reverse xs)))
+
 (defn two-bytes->int
   [msb lsb]
   (bit-or (bit-shift-left msb 8) lsb))
