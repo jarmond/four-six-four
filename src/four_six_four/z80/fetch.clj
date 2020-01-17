@@ -75,7 +75,7 @@
         pc (atom 0)]
     (letfn [(get-byte []
               (when (< @pc n)
-                (let [b (bytes @pc)]
+                (let [b (get bytes @pc)]
                   (swap! pc inc)
                   b)))]
       (take-while (comp seq :instr)
