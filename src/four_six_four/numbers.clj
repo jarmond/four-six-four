@@ -29,8 +29,8 @@
   "Convert sequence of bytes into integer assuming little-endian order."
   [xs]
   (as-> xs xxs
-       (map bit-shift-left xxs (range 0 (* (count xs) 8) 8))
-       (reduce bit-or xxs)))
+    (map bit-shift-left xxs (range 0 (* (count xs) 8) 8))
+    (reduce bit-or xxs)))
 
 (defn be-bytes->int
   "Convert sequence of bytes into integer assuming big-endian order."

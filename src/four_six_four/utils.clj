@@ -34,19 +34,21 @@
     (. crc getValue)))
 
 (defn crc16
-  "Compute CRC-16 for Tape checksum [X-25 polynomial]."
-  [xs]
-  (letfn [(mask-and-shift [crc]
-            (let [mask (- (bit-and crc 1))]
-              (bit-xor (bit-shift-right crc 1) (bit-and 0x8408 mask))))
-          (division-loop [crc b]
-            (let [xcrc (bit-xor crc b)]
-              (nth (iterate mask-and-shift xcrc) 8)))]
-    (->> xs
-         (map int)
-         (reduce division-loop 0xFFFF)
-         bit-not
-         (bit-and 0xFFFF))))
+  "Compute CRC-16 for Tape checksum (defaults to X-25 polynomial)."
+  ([xs]
+   (crc16 xs 0x8408))
+  ([xs poly]
+   (letfn [(mask-and-shift [crc]
+             (let [mask (- (bit-and crc 1))]
+               (bit-xor (bit-shift-right crc 1) (bit-and 0x8408 mask))))
+           (division-loop [crc b]
+             (let [xcrc (bit-xor crc b)]
+               (nth (iterate mask-and-shift xcrc) 8)))]
+     (->> xs
+          (map int)
+          (reduce division-loop 0xFFFF)
+          bit-not
+          (bit-and 0xFFFF)))))
 
 (defn ensure-vector [x]
   (if (coll? x) x (vector x)))
