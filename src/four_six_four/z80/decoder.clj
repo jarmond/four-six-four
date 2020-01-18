@@ -161,7 +161,7 @@
     {:op :ld :dest {:mode :direct :od :a} :src {:mode :indirect :od :de}}}
    ;; LD A, (nn)
    {0x3A
-    {:op :ld :dest {:mode :direct :od :a} :src {:mode :indirect :od [:argword]}}}
+    {:op :ld :dest {:mode :direct :od :a} :src {:mode :indirect :od :argword}}}
    ;; LD (BC), A
    {0x02
     {:op :ld :dest {:mode :indirect :od :bc} :src {:mode :direct :od :a}}}
@@ -170,7 +170,7 @@
     {:op :ld :dest {:mode :indirect :od :de} :src {:mode :direct :od :a}}}
    ;; LD (nn), A
    {0x32
-    {:op :ld :dest {:mode :indirect :od [:argword]} :src {:mode :direct :od :a}}}
+    {:op :ld :dest {:mode :indirect :od :argword} :src {:mode :direct :od :a}}}
 
    {0xED
     {;; LD A, I
@@ -188,35 +188,35 @@
    ;; LD dd, nn
    (pattern-regpair-dd
     "00dd0001"
-    {:op :ld :dest {:mode :direct :od :reg} :src {:mode :imm :od [:argword]}})
+    {:op :ld :dest {:mode :direct :od :reg} :src {:mode :imm :od :argword}})
    ;; LD I?, nn
    (gen-index-pair
     0x21
-    {:op :ld :dest {:mode :direct :od :index} :src {:mode :imm :od [:argword]}})
+    {:op :ld :dest {:mode :direct :od :index} :src {:mode :imm :od :argword}})
    ;; LD HL, (nn)
    {0x2A
-    {:op :ld :dest {:mode :direct :od :hl} :src {:mode :indirect :od [:argword]}}}
+    {:op :ld :dest {:mode :direct :od :hl} :src {:mode :indirect :od :argword}}}
    ;; LD mm, (nn)
    {0xED
     (pattern-regpair-dd
      "01dd1011"
-     {:op :ld :dest {:mode :direct :od :reg} :src {:mode :indirect :od [:argword]}})}
+     {:op :ld :dest {:mode :direct :od :reg} :src {:mode :indirect :od :argword}})}
    ;; LD I?, (nn)
    (gen-index-pair
     0x2A
-    {:op :ld :dest {:mode :direct :od :ix} :src {:mode :indirect :od [:argword]}})
+    {:op :ld :dest {:mode :direct :od :ix} :src {:mode :indirect :od :argword}})
    ;; LD (nn), HL
    {0x22
-    {:op :ld :dest {:mode :indirect :od [:argword]} :src {:mode :direct :od :hl}}}
+    {:op :ld :dest {:mode :indirect :od :argword} :src {:mode :direct :od :hl}}}
    ;; LD (nn), mm
    {0xED
     (pattern-regpair-dd
      "01dd0011"
-     {:op :ld :dest {:mode :indirect :od [:argword]} :src {:mode :direct :od :reg}})}
+     {:op :ld :dest {:mode :indirect :od :argword} :src {:mode :direct :od :reg}})}
    ;; LD (nn), I?
    (gen-index-pair
     0x22
-    {:op :ld :dest {:mode :indirect :od [:argword]} :src {:mode :direct :od :index}})
+    {:op :ld :dest {:mode :indirect :od :argword} :src {:mode :direct :od :index}})
    ;; LD SP, HL
    {0xF9
     {:op :ld :dest {:mode :direct :od :sp} :src {:mode :direct :od :hl}}}
@@ -507,9 +507,9 @@
    ;; JP cc, nn
    (pattern-jpcond
     "11ccc010"
-    {:op :jp :src {:mode :imm :od [:argword]} :dest {:mode :jpcond :od :reg}})
+    {:op :jp :src {:mode :imm :od :argword} :dest {:mode :jpcond :od :reg}})
    ;; JP nn
-   {0xC3 {:op :jp :src {:mode :imm :od [:argword]}}
+   {0xC3 {:op :jp :src {:mode :imm :od :argword}}
     ;; JR e
     0x18 {:op :jr :src {:mode :imm :od :arg1}}
     ;; JR C, e
@@ -534,13 +534,13 @@
   (merge-decoders
    ;; CALL nn
    {0xCD
-    {:op :call :src {:mode :imm :od [:argword]}}
+    {:op :call :src {:mode :imm :od :argword}}
     ;; RET
     0xC9
     {:op :ret}}
    ;; CALL cc, nn
    (pattern-jpcond "11ccc100"
-                   {:op :call :src {:mode :imm :od [:argword]} :dest {:mode :jpcond :od :reg}})
+                   {:op :call :src {:mode :imm :od :argword} :dest {:mode :jpcond :od :reg}})
    ;; RET cc
    (pattern-jpcond "11ccc000"
                    {:op :ret :src {:mode :jpcond :od :reg}})
@@ -633,15 +633,18 @@
        (postwalk-replace {:arg1 operand1
                           :arg2 operand2
                           :argword (when operand2
-                                     (two-bytes->int operand1 operand2))})
+                                     (two-bytes->int operand2 operand1))})
 
 
        ;; Two's complement IX/Y offsets.
        (postwalk (fn [x]
-                   (if (and (vector? x))
-                     (if-let [ix (#{:ix :iy} (first x))]
-                       [ix (twos-comp (second x))]
-                       x)
+                   (if (vector? x)
+                     (let [[reg val] x]
+                       (if-let [ix (#{:ix :iy} reg)]
+                         [ix (if (> val 127)
+                               (twos-comp val)
+                               val)]
+                         x))
                      x)))))
 
 (defn decode

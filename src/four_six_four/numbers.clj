@@ -61,9 +61,8 @@
 (defn twos-comp
   "Two's complement unsigned byte `x`."
   [x]
-  (let [mask (bit-shift-left 1 7)]
-    (- (bit-and x mask)
-       (bit-and 0xFF (bit-and x (bit-not mask))))))
+  (- (bit-and x 0x7F) 0x80))
+
 
 (defn ones-comp
   "One's complement unsigned byte `x`."
