@@ -1,6 +1,6 @@
 (ns four-six-four.z80.fetch-test
   (:require [clojure.test :refer :all]
-            [four-six-four.test-programs :refer [bubble-sort memcpy]]
+            [four-six-four.z80.test-programs :refer [bubble-sort memcpy]]
             [four-six-four.z80.fetch :refer :all]))
 
 (deftest disassembler-test

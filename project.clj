@@ -10,5 +10,7 @@
   :main ^:skip-aot four-six-four.main
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}
-             :dev {:plugins [[lein-nodisassemble "0.1.3"]]}})
+             :dev {:plugins [[lein-nodisassemble "0.1.3"]]}}
+  :source-paths ["src"]
+  :bootclasspath true)
 
