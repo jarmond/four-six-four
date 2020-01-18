@@ -1,5 +1,5 @@
 (ns four-six-four.utils
-  (:import java.lang.StackWalker
+  (:import #_java.lang.StackWalker
            java.util.function.Function
            java.util.stream.Stream))
 
@@ -70,7 +70,7 @@
   (if (coll? x) x (vector x)))
 
 
-(defn top-of-stacktrace []
+#_(defn top-of-stacktrace []
   (let [pick-first (reify Function
                      (apply [_ stream]
                        (.. stream
