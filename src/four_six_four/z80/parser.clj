@@ -1,6 +1,5 @@
 (ns four-six-four.z80.parser
   (:require [clojure.string :as str]
-            [clojure.test :as t]
             [instaparse.core :as insta]))
 
 ;;; Context-free grammar for Z80 assembly
