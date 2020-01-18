@@ -5,7 +5,7 @@
             [four-six-four.utils :refer [nilmap]]
             [four-six-four.z80.fetch :refer [fetch-instruction]]
             [four-six-four.z80.instructions :refer [operation]]
-            [four-six-four.z80.pprint :refer [format-instr]]
+            [four-six-four.pprint :refer [format-instr]]
             [four-six-four.z80.vm :refer [*z80* is-running set-pc inc-refresh]]))
 
 ;;;; CPU control

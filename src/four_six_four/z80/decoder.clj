@@ -3,8 +3,8 @@
             [clojure.string :as str]
             [clojure.walk :refer [postwalk postwalk-replace]]
             [four-six-four.numbers :refer :all]
+            [four-six-four.pprint :refer [format-bin]]
             [four-six-four.utils :refer [walk-count]]))
-
 
 ;;; Decoder
 
@@ -632,7 +632,8 @@
        ;; Replace arg keys.
        (postwalk-replace {:arg1 operand1
                           :arg2 operand2
-                          :argword (when operands (le-bytes->int operands))})
+                          :argword (when operand2
+                                     (two-bytes->int operand1 operand2))})
 
 
        ;; Two's complement IX/Y offsets.

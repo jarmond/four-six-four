@@ -1,26 +1,9 @@
 (ns four-six-four.numbers
-  (:require [clojure.pprint :refer [cl-format]])
   (:import java.lang.Long))
 
 ;;; TODO organize or split
 
 ;;; Number utilities
-
-(defn format-bin
-  ([x]
-   (when x
-     (cl-format nil "~b" x)))
-  ([w x]
-   (when x
-     (cl-format nil "~v,'0b" w x))))
-
-(defn format-hex
-  ([x]
-   (when x
-     (cl-format nil "~x" x)))
-  ([w x]
-   (when x
-     (cl-format nil "~v,'0x" w x))))
 
 (defn digit->int [c]
   (- (int c) 48))

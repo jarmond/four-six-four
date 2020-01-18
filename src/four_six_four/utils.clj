@@ -40,7 +40,7 @@
   ([xs poly]
    (letfn [(mask-and-shift [crc]
              (let [mask (- (bit-and crc 1))]
-               (bit-xor (bit-shift-right crc 1) (bit-and 0x8408 mask))))
+               (bit-xor (bit-shift-right crc 1) (bit-and poly mask))))
            (division-loop [crc b]
              (let [xcrc (bit-xor crc b)]
                (nth (iterate mask-and-shift xcrc) 8)))]
@@ -49,6 +49,22 @@
           (reduce division-loop 0xFFFF)
           bit-not
           (bit-and 0xFFFF)))))
+
+(defn crc16-alt
+  [xs]
+  (letfn [(mask-and-shift [aux]
+            (if (= 1 (bit-shift-right (bit-and aux 0x8000) 15))
+              (bit-xor (bit-shift-left aux 1) 0x1021)
+              (bit-shift-left aux 1)))
+          (division-loop [crc b]
+            (let [xcrc (bit-xor crc (bit-shift-left b 8))]
+              (nth (iterate mask-and-shift xcrc) 8)))]
+    (->> xs
+         (map int)
+         (reduce division-loop 0xFFFF)
+         bit-not
+         (bit-and 0xFFFF))))
+
 
 (defn ensure-vector [x]
   (if (coll? x) x (vector x)))

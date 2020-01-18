@@ -1,7 +1,37 @@
-(ns four-six-four.z80.pprint
+(ns four-six-four.pprint
   (:require [clojure.pprint :refer [cl-format]]
-            [clojure.string :as str]
-            [four-six-four.numbers :refer [format-hex]]))
+            [clojure.string :as str]))
+
+;;; Numbers
+
+(defn format-bin
+  ([x]
+   (when x
+     (cl-format nil "~b" x)))
+  ([w x]
+   (when x
+     (cl-format nil "~v,'0b" w x))))
+
+(defn format-hex
+  ([x]
+   (when x
+     (cl-format nil "~x" x)))
+  ([w x]
+   (when x
+     (cl-format nil "~v,'0x" w x))))
+
+;;; Hex dump
+(def hex-width 16)
+
+(defn hex-dump
+  [xs]
+  (let [lines (partition-all hex-width xs)
+        line-starts (map (partial * hex-width) (range (count lines)))]
+    (doseq [[line start] (map vector lines line-starts)]
+      (cl-format true "~8,'0x: ~{~2,'0x~^ ~}~%" start line))))
+
+
+;;; Instructions
 
 (defn format-loc
   [{:keys [mode od bit jpcond]}]
@@ -42,3 +72,4 @@
 (defn print-assembly
   [assembly]
   (print (format-assembly assembly)))
+

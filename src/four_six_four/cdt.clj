@@ -1,8 +1,10 @@
 (ns four-six-four.cdt
   (:require [clojure.pprint :refer [cl-format]]
+            [clojure.string :as str]
             [clojure.walk :refer [postwalk]]
-            [four-six-four.numbers :refer [ceil-log2]])
-  (:import java.io.FileInputStream))
+            [four-six-four.numbers :refer [ceil-log2 le-bytes->int be-bytes->int]]
+            [four-six-four.utils :refer [ensure-vector crc16]])
+  (:import [java.io ByteArrayInputStream FileInputStream]))
 
 ;;;; CDT tape image format stream.
 ;;;; See spec at http://www.cpcwiki.eu/index.php/Format:CDT_tape_image_file_format
@@ -10,17 +12,16 @@
 
 ;;; Block definitions
 
-(defn make-vector [x]
-  (if (coll? x) x (vector x)))
-
 (defn normalize-type [type]
   (case type
     :byte [:byte 1]
     :word [:byte 2]
     :dword [:byte 4]
-    (make-vector type)))
+    (ensure-vector type)))
 
-(defn patch-references [fields this type]
+(defn patch-references
+  "Replaces labels referring to other fields with the correct values."
+  [fields this type]
   (if (keyword? type)
     (normalize-type type)
     [(first type)
@@ -34,6 +35,7 @@
 (defn clause->read-value [fields this stream [field type]]
   `(assoc ~this ~(keyword field) (read-value ~(patch-references fields this type) ~stream)))
 
+(declare read-value)
 (def block-id-map {})
 (defmacro defblock
   "Define CDT block."
@@ -53,7 +55,6 @@
            (~(symbol (str "map->" name)) ~record)))
        ~(when id
           `(alter-var-root #'block-id-map assoc ~id #'~constructor)))))
-
 
 (defblock Header nil
   magic [:char 7]
@@ -208,21 +209,53 @@
 (defblock GlueBlock 0x5A
   magic [:byte 9])
 
+
+;;; CPC Tape format
+
+;; 256-bytes
+
+
+(defblock TapeHeader 0x2C
+  filename [:char 16]
+  block-number :byte
+  last-block? :byte
+  filetype :byte
+  length :word
+  location :word
+  first-block? :byte
+  logical-length :word
+  entry-address :word
+  unallocated [:byte-array 36]
+  padding [:byte-array 192]
+  checksum [:be-byte 2]
+  trailer :word)
+
+(defblock TapeDataSegment nil
+  data [:byte-array 256]
+  checksum [:be-byte 2])
+
+;; N*256 bytes for N=1,...,8
+(def ^:dynamic *segment-count*)
+(defblock TapeData 0x16
+  blocks [:tape-segment *segment-count*]
+  trailer :word)
+
 ;; Containing structure.
 (defrecord Cdt [header blocks])
 
 ;;; Reading binary values.
 
-(ns-unmap *ns* 'read-value)
-;; tranlsate :word :dword to [:byte 2] etc
 (defn read-value-dispatch-fn [val & args]
   (mapv (fn [x]
           (if (keyword? x) x (class x)))
-       val))
+        val))
 (defmulti read-value read-value-dispatch-fn)
 
 (defmethod read-value [:byte Number] [[_ n] stream] ; little-endian
   (le-bytes->int (repeatedly n #(.read stream))))
+
+(defmethod read-value [:be-byte Number] [[_ n] stream] ; Big-endian
+  (be-bytes->int (repeatedly n #(.read stream))))
 
 (defmethod read-value [:byte-array Number] [[_ n] stream]
   (let [array (byte-array n)]
@@ -230,7 +263,7 @@
     (mapv #(bit-and 0xFF (int %)) array))) ; convert to unsigned
 
 (defmethod read-value [:word-array Number] [[_ n] stream]
-  (repeatedly n #(read-value [:byte 2] stream)))
+  (vec (repeatedly n #(read-value [:byte 2] stream))))
 
 (defmethod read-value [:char Number] [[_ n] stream]
   (apply str (map char (read-value [:byte-array n] stream))))
@@ -252,7 +285,57 @@
   (read->HwInfoStruct stream))
 
 
+;;; Read CPC Tape blocks
+
+
+(defmulti read-tape-block class)
+
+(derive StandardDataBlock ::TapeBlockContainer)
+(derive TurboDataBlock ::TapeBlockContainer)
+
+(defmethod read-tape-block ::TapeBlockContainer [blk]
+  (let [data (byte-array (:data blk))
+        checksum (crc16 (rest data))
+        stream (ByteArrayInputStream. data)
+        id (.read stream)]
+    (case id
+      0x2C (assoc blk :data (read->TapeHeader stream))
+      0x16 (assoc blk :data (binding [*segment-count* (mod (:length blk) 256)]
+                              (->> stream
+                                   read->TapeData
+                                   ;; TODO check checksum
+                                   :blocks
+                                   (mapcat :data)
+                                   vec))))))
+
+(defmethod read-tape-block :default [blk] blk)
+
+(defmethod read-value [:tape-segment Number] [[_ n] stream]
+  (vec (repeatedly n #(read->TapeDataSegment stream))))
+
+;;; Pretty-printing blocks
+
+(defn trimr-nul
+  "Trim trailing NULs from string."
+  [s]
+  (->> s
+       (take-while (complement (partial = \u0000)))
+       (apply str)))
+
+(defn format-field [[k v]]
+  (str (name k)
+       " "
+       (cond
+         (vector? v) (cl-format false "#~4,'0d" (count v))
+         (record? v) (cl-format false "Header{~a}" (str/join " " (map format-field v)))
+         :else (str v))))
+
+(defn format-block [blk]
+  (str (type blk) " " (str/join " " (map format-field blk))))
+
+
 ;;; Read CDT
+
 
 (defn block-seq
   "Return CDT blocks as a lazy sequence of blocks."
@@ -267,10 +350,44 @@
   (with-open [stream (FileInputStream. filename)]
     (let [cdt (->Cdt (read->Header stream) [])]
       ;; TODO check magic
-      (assoc cdt :blocks (vec (block-seq stream))))))
+      (->> stream
+           block-seq
+           (mapv read-tape-block)
+           (assoc cdt :blocks)))))
 
 (defn summary-cdt
   "Summary printing of CDT image."
   [{header :header blocks :blocks}]
   (cl-format true "Header: ~a v~a.~a~%" (:magic header) (:major header) (:minor header))
-  (cl-format true "Blocks: ~{~a~^, ~}~%" (map type blocks)))
+  (cl-format true "Blocks:~%~{>~a~^~%~}~%" (map format-block blocks)))
+
+
+(defn cdt-ls
+  "List files in CDT."
+  [cdt]
+  (->> (:blocks cdt)
+       (keep #(get-in % [:data :filename]))
+       (map trimr-nul)
+       (into #{})))
+
+(defn padr-nul
+  "Pad on right with NULs"
+  [s len]
+  (let [pad (- len (count s))]
+    (str/join [s (apply str (repeat pad \u0000))])))
+
+(defn cdt-extract
+  "Extract file from CDT."
+  [cdt filename]
+  (let [padded (padr-nul filename 16)]
+    (->> (:blocks cdt)
+         (partition 2 1) ; Pair each block with the following
+         (filter (fn [[a b]] ; Keep pairs where first is a header with right filename
+                   (= padded (get-in a [:data :filename]))))
+         (sort-by (comp :block-number :data first))
+         (map second) ; Extract data blocks
+         (mapcat :data)
+         vec)))
+
+(defn cdt-cat
+  "")
