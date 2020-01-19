@@ -3,7 +3,8 @@
             [clojure.string :as str]
             [clojure.walk :refer [postwalk]]
             [four-six-four.numbers :refer [ceil-log2 le-bytes->int be-bytes->int]]
-            [four-six-four.utils :refer [ensure-vector crc16]])
+            [four-six-four.utils :refer [ensure-vector crc16]]
+            [four-six-four.streams :as stream])
   (:import [java.io ByteArrayInputStream FileInputStream]))
 
 ;;;; CDT tape image format stream.
@@ -12,13 +13,6 @@
 
 ;;; Block definitions
 
-(defn normalize-type [type]
-  (case type
-    :byte [:byte 1]
-    :word [:byte 2]
-    :dword [:byte 4]
-    (ensure-vector type)))
-
 (defn patch-references
   "Replaces labels referring to other fields with the correct values."
   [fields this type]
@@ -26,16 +20,14 @@
     (normalize-type type)
     [(first type)
      (postwalk (fn [x]
-                 (cond
-                   (keyword? x) (normalize-type x)
-                   (and (symbol? x) (some #{x} fields)) `(~(keyword x) ~this)
-                   :else x))
+                 (if (and (symbol? x) (some #{x} fields))
+                   `(~(keyword x) ~this)
+                   x))
                (second type))]))
 
 (defn clause->read-value [fields this stream [field type]]
-  `(assoc ~this ~(keyword field) (read-value ~(patch-references fields this type) ~stream)))
+  `(assoc ~this ~(keyword field) (stream/read-value ~(patch-references fields this type) ~stream)))
 
-(declare read-value)
 (def block-id-map {})
 (defmacro defblock
   "Define CDT block."
@@ -243,45 +235,22 @@
 ;; Containing structure.
 (defrecord Cdt [header blocks])
 
-;;; Reading binary values.
+;;; Extending read-value for reading CDT structs.
 
-(defn read-value-dispatch-fn [val & args]
-  (mapv (fn [x]
-          (if (keyword? x) x (class x)))
-        val))
-(defmulti read-value read-value-dispatch-fn)
-
-(defmethod read-value [:byte Number] [[_ n] stream] ; little-endian
-  (le-bytes->int (repeatedly n #(.read stream))))
-
-(defmethod read-value [:be-byte Number] [[_ n] stream] ; Big-endian
-  (be-bytes->int (repeatedly n #(.read stream))))
-
-(defmethod read-value [:byte-array Number] [[_ n] stream]
-  (let [array (byte-array n)]
-    (.read stream array)
-    (mapv #(bit-and 0xFF (int %)) array))) ; convert to unsigned
-
-(defmethod read-value [:word-array Number] [[_ n] stream]
-  (vec (repeatedly n #(read-value [:byte 2] stream))))
-
-(defmethod read-value [:char Number] [[_ n] stream]
-  (apply str (map char (read-value [:byte-array n] stream))))
-
-(defmethod read-value [:symdef Number Number] [[_ n maxn] stream]
+(defmethod stream/read-value [:symdef Number Number] [[_ n maxn] stream]
   (binding [*symdef-max-pulse* maxn]
     (read->SymdefStruct stream)))
 
-(defmethod read-value [:prle Number] [[_ n] stream]
+(defmethod stream/read-value [:prle Number] [[_ n] stream]
   (read->PrleStruct stream))
 
-(defmethod read-value [:select Number] [[_ n] stream]
+(defmethod stream/read-value [:select Number] [[_ n] stream]
   (read->SelectStruct stream))
 
-(defmethod read-value [:text Number] [[_ n] stream]
+(defmethod stream/read-value [:text Number] [[_ n] stream]
   (read->TextStruct stream))
 
-(defmethod read-value [:hwinfo Number] [[_ n] stream]
+(defmethod stream/read-value [:hwinfo Number] [[_ n] stream]
   (read->HwInfoStruct stream))
 
 
@@ -310,7 +279,7 @@
 
 (defmethod read-tape-block :default [blk] blk)
 
-(defmethod read-value [:tape-segment Number] [[_ n] stream]
+(defmethod stream/read-value [:tape-segment Number] [[_ n] stream]
   (vec (repeatedly n #(read->TapeDataSegment stream))))
 
 ;;; Pretty-printing blocks
@@ -390,4 +359,5 @@
          vec)))
 
 (defn cdt-cat
-  "")
+  ""
+  [])
