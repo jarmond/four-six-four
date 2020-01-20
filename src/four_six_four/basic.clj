@@ -275,24 +275,32 @@
      (rest remain)]))
 
 
+(defn disassemble-one-token
+  [[x & xs] token-map]
+  (let [t (token-map x)]
+    ;; Disassemble current token consuming as necessary.
+    (case t
+      :prefix (disassemble-one-token xs basic-tokens-ff)
+      :var-def (disassemble-var-def xs)
+      :word [(str (le-bytes->int [(first xs) (second xs)]))
+             (nnext xs)]
+      :byte [(str (first xs)) (next xs)]
+      :string (let [[s xxs] (split-with (partial = 0x22) xs)]
+                [(str \" (apply str (butlast s)) \") xxs])
+      nil [nil nil]
+      [t xs])))
+
 (defn disassemble-tokens
   ([xs]
-   (disassemble-tokens xs basic-tokens nil))
+   (disassemble-tokens xs nil))
 
-  ([[x & xs] token-map line]
-   (if (or (nil? x) (zero? x))
-     line
-     (let [t (token-map x)
-           ;; Disassemble current token consuming as necessary.
-           [append xxs] (case t
-                          :prefix (disassemble-tokens xs basic-tokens-ff)
-                          :var-def (disassemble-var-def xs)
-                          :word [(str (le-bytes->int [(first xs) (second xs)]))
-                                 (nnext xs)]
-                          nil [nil nil]
-                          [t xs])]
-       ;; Join onto accumulated line.
-       (disassemble-tokens xxs basic-tokens (str/join " " [line append]))))))
+  ([tokens line]
+   (loop [[x & xs :as tokens] tokens
+          line line]
+     (if (or (nil? x) (zero? x))
+       line
+       (let [[append xxs] (disassemble-one-token tokens basic-tokens)]
+         (recur xxs (str/join [line append])))))))
 
 
 (defn disassemble-line
@@ -301,7 +309,7 @@
     (when (pos? length)
       (let [line-num (read-value :word stream)
             line-tokens (read-value [:byte-array (- length 4)] stream)]
-        (apply str line-num (disassemble-tokens line-tokens))))))
+        (apply str line-num " " (disassemble-tokens line-tokens))))))
 
 (defn disassemble
   [bs]

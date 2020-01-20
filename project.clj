@@ -12,5 +12,6 @@
   :profiles {:uberjar {:aot :all}
              :dev {:plugins [[lein-nodisassemble "0.1.3"]]}}
   :source-paths ["src"]
+  :test-paths ["test"]
   :bootclasspath true)
 
