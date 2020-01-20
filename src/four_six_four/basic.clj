@@ -254,6 +254,16 @@
   (get tokens-multiple-operands token 1))
 
 
+;; This is the BASIC float.
+(defn disassemble-float
+  [[m2 m1 m0 sm e]]
+  (let [e (- e 128)
+        m3 (bit-or 0x80 (bit-and 0x7F sm))
+        s (bit-and 0x80 sm)
+        v (* (le-bytes->int [m3 m2 m1 m0]) (Math/pow  2 e))]
+    (if (pos? s)
+      (- v)
+      v)))
 
 (defn last-name-byte?
   "Predicate for last byte of name string, i.e. has bit 7 set."
@@ -287,6 +297,8 @@
       :byte [(str (first xs)) (next xs)]
       :string (let [[s xxs] (split-with (partial = 0x22) xs)]
                 [(str \" (apply str (butlast s)) \") xxs])
+      :float [(str (disassemble-float (take 5 xs)))
+              (drop 5 xs)]
       nil [nil nil]
       [t xs])))
 
