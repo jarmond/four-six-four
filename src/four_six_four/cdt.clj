@@ -17,7 +17,7 @@
   "Replaces labels referring to other fields with the correct values."
   [fields this type]
   (if (keyword? type)
-    (normalize-type type)
+    (stream/normalize-type type)
     [(first type)
      (postwalk (fn [x]
                  (if (and (symbol? x) (some #{x} fields))
@@ -359,5 +359,5 @@
          vec)))
 
 (defn cdt-cat
-  ""
+  "Print content of file in various forms."
   [])
