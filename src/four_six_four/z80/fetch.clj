@@ -83,12 +83,10 @@
                        (repeatedly (fn [] @pc))
                        (repeatedly #(fetcher get-byte)))))))
 
-;; FIXME use FileInputStream
 (defn disassemble-file
   "Disassemble file to assembly."
   [filename]
-  (->
-   (java.io.File. filename)
-   byte-streams/to-byte-array
-   vec
-   disassemble))
+  (with-open [stream (java.io.FileInputStream. filename)]
+    (let [bs (byte-array (.length stream))]
+      (.read stream bs)
+      (disassemble bs))))

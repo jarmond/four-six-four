@@ -275,7 +275,8 @@
                                    ;; TODO check checksum
                                    :blocks
                                    (mapcat :data)
-                                   vec))))))
+                                   vec)))
+      blk))) ; If not recognised sync byte, leave untouched.
 
 (defmethod read-tape-block :default [blk] blk)
 

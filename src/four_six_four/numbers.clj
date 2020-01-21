@@ -85,3 +85,8 @@
 
 (defn rotate-right [x n]
   (Long/rotateRight x n))
+
+(defn byte->unsigned [x]
+  (if (neg? x)
+    (+ (bit-and x 0x7F) 0x7F)
+    x))

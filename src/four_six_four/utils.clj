@@ -1,6 +1,6 @@
 (ns four-six-four.utils
-  (:import #_java.lang.StackWalker
-           java.util.function.Function
+  (:require [four-six-four.numbers :refer [byte->unsigned]])
+  (:import java.util.function.Function
            java.util.stream.Stream))
 
 (defn nilmap
@@ -81,3 +81,10 @@
         (walk pick-first)
         (get)
         (getMethodName))))
+
+(defn slurp-bytes
+  "Slurp unsigned bytes from a slurpable thing"
+  [x]
+  (with-open [out (java.io.ByteArrayOutputStream.)]
+    (clojure.java.io/copy (clojure.java.io/input-stream x) out)
+    (mapv byte->unsigned (.toByteArray out))))
