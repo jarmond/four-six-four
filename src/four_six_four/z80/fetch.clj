@@ -67,21 +67,19 @@
   (dosync
    (fetcher (partial read-pc-byte))))
 
-;; FIXME use clojure.java.io.reader
 (defn disassemble
   "Disassemble bytes to assembly."
-  [bytes]
-  (let [n (count bytes)
-        pc (atom 0)]
-    (letfn [(get-byte []
-              (when (< @pc n)
-                (let [b (get bytes @pc)]
-                  (swap! pc inc)
-                  b)))]
-      (take-while (comp seq :instr)
-                  (map #(assoc %2 :loc %1)
-                       (repeatedly (fn [] @pc))
-                       (repeatedly #(fetcher get-byte)))))))
+  [xs]
+  (let [n (count xs)
+        stream (java.io.ByteArrayInputStream. (byte-array xs))
+        get-byte #(.read stream)]
+    (loop [asm []]
+      (if (zero? (.available stream))
+        asm
+        (recur (conj asm
+                     (merge {:loc (- n (.available stream))}
+                             (fetcher get-byte))))))))
+
 
 (defn disassemble-file
   "Disassemble file to assembly."
