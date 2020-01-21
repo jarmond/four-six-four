@@ -1,6 +1,6 @@
 (ns four-six-four.z80.instructions-test
   (:require [clojure.test :refer :all]
-            [four-six-four.z80.control :refer [execute-program]]
+            [four-six-four.z80.control :refer [execute-program-sequence]]
             [four-six-four.z80.vm
              :refer
              [*z80* make-z80 read-reg read-mem reset flags set-flag test-flag print-z80 with-z80]]
@@ -32,7 +32,7 @@
   (let [asm (if (vector? program) (str/join "\n" program) program)]
     (let [ast (parse-assembly asm)]
       (reset)
-      (execute-program ast))))
+      (execute-program-sequence ast))))
 
 (defmacro test-program
   [program expected & body]

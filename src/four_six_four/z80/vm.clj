@@ -136,6 +136,14 @@
   {:pre (< -1 loc +memory-size+)}
   (alter (:memory *z80*) assoc loc val))
 
+(defn splice [v start splice-vec]
+  (into (subvec v 0 start)
+        (into splice-vec) (subvec v (+ start (count splice-vec)))))
+
+(defn memcpy
+  [loc bytes]
+  (alter (:memory *z80*) splice loc bytes))
+
 ;;; Program counter
 
 (defn inc-pc
