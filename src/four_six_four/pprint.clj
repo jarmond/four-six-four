@@ -57,7 +57,7 @@
 
 (defn format-decode
   [{:keys [loc opcode instr]}]
-  (cl-format nil "~6x ~{~2,'0x~^ ~} ~20,0t~a"
+  (cl-format nil "~6x   ~{~2,'0x~^ ~} ~22,0t~a"
              loc
              opcode
              (format-instr instr)))

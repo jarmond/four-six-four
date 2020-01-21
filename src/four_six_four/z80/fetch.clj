@@ -22,6 +22,7 @@
   (condp walk-member instr
     :arg2 2
     :arg1 1
+    :argword 2
     0))
 
 
