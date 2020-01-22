@@ -26,6 +26,7 @@ loop:   ld      a,b         ;Test BC,
         jp      loop        ;Repeat the loop
 "
    :url "https://en.wikipedia.org/wiki/Zilog_Z80#Example_code"
+   :origin 0x1000
    :asm [{:op :ld   :dest {:mode :direct :od :a} :src {:mode :direct :od :b}}
          {:op :or   :src  {:mode :direct :od :c}}
          {:op :ret  :src  {:cond :z}}
@@ -88,7 +89,7 @@ FLAG:      EQU 0
 DATA:      DEFS 2
            END
 "
-
+     :origin 0x1000
      :object
      [0x22 0x26 0x00
       0xCB 0x84

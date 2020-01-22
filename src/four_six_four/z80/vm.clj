@@ -138,11 +138,15 @@
 
 (defn splice [v start splice-vec]
   (into (subvec v 0 start)
-        (into splice-vec) (subvec v (+ start (count splice-vec)))))
+        (into splice-vec (subvec v (+ start (count splice-vec))))))
 
-(defn memcpy
+(defn write-mem-vector
   [loc bytes]
   (alter (:memory *z80*) splice loc bytes))
+
+(defn read-mem-vector
+  [loc len]
+  (subvec @(:memory *z80*) loc (+ loc len)))
 
 ;;; Program counter
 
