@@ -51,7 +51,7 @@
 (defn format-instr
   [{:keys [op dest src]}]
   (cl-format nil "~4a ~:[~*~;~a,~]~:[~*~;~a~]"
-             (name op)
+             (when op (name op))
              dest (when dest (format-loc dest))
              src (when src (format-loc src))))
 

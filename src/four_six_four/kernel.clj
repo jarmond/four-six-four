@@ -1,5 +1,5 @@
 (ns four-six-four.kernel
-  (:require [clojure.tools.logging :as log]))
+  (:require [taoensso.timbre :as log]))
 
 
 ;; Consider defining special instruction for kernel trap.

@@ -1,6 +1,6 @@
 (ns four-six-four.z80.vm
   (:require [clojure.pprint :refer [cl-format]]
-            [clojure.tools.logging :as log]
+            [taoensso.timbre :as log]
             [four-six-four.numbers :refer :all]
             [four-six-four.utils :refer [nilmap crc32]]))
 
@@ -162,7 +162,7 @@
 
 (defn get-pc
   []
-  (@(:pc *z80*)))
+  @(:pc *z80*))
 
 (defn read-pc-byte
   []
@@ -174,13 +174,17 @@
   []
   @(:running? *z80*))
 
+(defn set-running
+  []
+  (ref-set (:running? *z80*) true))
+
 (defn toggle-running
   []
   (commute (:running? *z80*) not))
 
 (defn inc-refresh
   []
-  (alter (:registers *z80*) update :r inc))
+  (commute (:registers *z80*) update :r inc))
 
 (defn print-z80
   ([print? z80]

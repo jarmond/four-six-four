@@ -16,10 +16,11 @@
 
 (deftest program-test
   (testing "memcpy"
-    (dosync 
+    (dosync
      (write-mem-vector 0x200 test-string)
      (write-reg :bc (count test-string))
      (write-reg :de 0x200)
      (write-reg :hl 0x100))
     (execute-program (:object p/memcpy) (:origin p/memcpy))
+    (print-z80 true)
     (is (= test-string (read-mem-vector 0x100 (count test-string))))))

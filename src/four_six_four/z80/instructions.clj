@@ -1,6 +1,6 @@
 (ns four-six-four.z80.instructions
   (:require [clojure.pprint :refer [cl-format]]
-            [clojure.tools.logging :as log]
+            [taoensso.timbre :as log]
             [four-six-four.numbers
              :refer
              [low-nib pop-count-byte rotate-left rotate-right ones-comp
