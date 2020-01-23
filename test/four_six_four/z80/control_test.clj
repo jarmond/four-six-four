@@ -22,5 +22,4 @@
      (write-reg :de 0x200)
      (write-reg :hl 0x100))
     (execute-program (:object p/memcpy) (:origin p/memcpy))
-    (print-z80 true)
     (is (= test-string (read-mem-vector 0x100 (count test-string))))))

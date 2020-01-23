@@ -29,6 +29,7 @@
        (inc-refresh))
       (operation (:instr decode)))))
 
+
 (defn execute-step
   "Execute bound VM running program from `start` in memory step-wise. Runs until
   halted or aborted."
@@ -39,21 +40,28 @@
    (set-running))
   (while (is-running)
     (let [decode (fetch-instruction)]
-      (println (format-decode (merge decode {:loc (get-pc)})))
-      (print "?> ")
-      (flush)
-      (case (first (read-line))
-        \n (do
-             (dosync
-              (inc-refresh))
-             (operation (:instr decode)))
-        \q (do
-             (println "quitting")
-             (dosync
-              (toggle-running)
-              (print-z80 true)))
-        \p (print-z80 true)
-        (println "Invalid command")))))
+      (loop []
+        (newline)
+        (println (format-decode (merge decode {:loc (get-pc)})))
+        (print "?> ")
+        (flush)
+        (case (first (read-line))
+          \n (do
+               (dosync
+                (inc-refresh))
+               (operation (:instr decode)))
+          \q (do
+               (println "quitting")
+               (dosync
+                (toggle-running)
+                (print-z80 true)))
+          \p (do
+               (print-z80 true)
+               (recur))
+          \i (do
+               (print decode)
+               (recur))
+          (print "invalid command"))))))
 
 (defn execute-program
   "Execute bound VM running `program` copied into location `start`."

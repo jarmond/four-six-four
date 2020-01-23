@@ -386,14 +386,13 @@
     :p  (not (test-flag :pv))
     :m  (test-flag :pv)))
 
-(defmacro defjumpop ;; FIXME check src doesn't go into dest
-  "Convenience to define rotate and shift operations. Options are:
-  :accumulator  operate on accumulator
-  :lr           either :left or :right, whether to set carry to msb or lsb"
+(defmacro defjumpop
+  "Convenience to jump operations."
   [mnemonic jump-fn]
   `(defop ~mnemonic [dest# src#]
-     (let [target# (read-val src#)
-           jpcond# (:jpcond dest#)]
+     (let [target# (read-val (or src# dest#))
+           jpcond# (when (= (:mode dest#) :jpcond)
+                     (:od dest#))]
        (when (or (nil? jpcond#) (test-jpcond jpcond#))
          (~jump-fn target#)))))
 
