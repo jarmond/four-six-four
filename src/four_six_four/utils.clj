@@ -88,3 +88,9 @@
   (with-open [out (java.io.ByteArrayOutputStream.)]
     (clojure.java.io/copy (clojure.java.io/input-stream x) out)
     (mapv byte->unsigned (.toByteArray out))))
+
+(defn flip
+  "Flip function arg order."
+  [f]
+  (fn [& xs]
+    (apply f (reverse xs))))

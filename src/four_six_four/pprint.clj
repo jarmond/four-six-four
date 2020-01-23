@@ -24,11 +24,13 @@
 (def hex-width 16)
 
 (defn hex-dump
-  [xs]
-  (let [lines (partition-all hex-width xs)
-        line-starts (map (partial * hex-width) (range (count lines)))]
-    (doseq [[line start] (map vector lines line-starts)]
-      (cl-format true "~8,'0x: ~{~2,'0x~^ ~}~%" start line))))
+  ([xs]
+   (hex-dump xs 0))
+  ([xs offset]
+   (let [lines (partition-all hex-width xs)
+         line-starts (map (partial * hex-width) (range offset (+ offset (count lines))))]
+     (doseq [[line start] (map vector lines line-starts)]
+       (cl-format true "~8,'0x: ~{~2,'0x~^ ~}~%" start line)))))
 
 
 ;;; Instructions

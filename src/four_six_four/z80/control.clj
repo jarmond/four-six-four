@@ -1,9 +1,23 @@
 (ns four-six-four.z80.control
-  (:require [taoensso.timbre :as log]
+  (:require [clojure.string :as str]
+            [four-six-four.pprint :refer [format-decode format-hex hex-dump]]
+            [four-six-four.utils :refer [flip]]
             [four-six-four.z80.fetch :refer [fetch-instruction]]
             [four-six-four.z80.instructions :refer [operation]]
-            [four-six-four.pprint :refer [format-decode]]
-            [four-six-four.z80.vm :refer [*z80* set-running toggle-running is-running get-pc set-pc inc-refresh write-mem-vector print-z80]]))
+            [four-six-four.z80.vm
+             :refer
+             [*z80*
+              get-pc
+              inc-refresh
+              is-running
+              print-z80
+              read-mem
+              read-mem-vector
+              set-pc
+              set-running
+              toggle-running
+              write-mem-vector]]
+            [taoensso.timbre :as log]))
 
 ;;;; CPU control
 
@@ -29,6 +43,26 @@
        (inc-refresh))
       (operation (:instr decode)))))
 
+
+(defn guess-radix
+  [s]
+  (let [t (str/trim s)]
+    (cond
+      (str/starts-with? t "0x") [16 (subs t 2)]
+      (str/ends-with? t "h") [16 (subs t (dec (count t)))]
+      :else [10 t])))
+
+
+(defn parse-long
+  "Safely parse long in dec, hex ."
+  [s]
+  (let [[radix digits] (guess-radix s)]
+    (try
+      (if (= radix 10)
+        (Long/parseLong (or digits ""))
+        (Long/parseUnsignedLong (or digits "") radix))
+      (catch NumberFormatException e nil))))
+
 (defn debugger-loop
   "User interface loop for debugging during stepwise execution."
   [decode]
@@ -37,27 +71,37 @@
     (println (format-decode (merge decode {:loc (get-pc)})))
     (print "?> ")
     (flush)
-    (case (first (read-line))
-      ;; execute next
-      \n nil
-      ;; quit
-      \q (do
-           (println "quitting")
-           (dosync
-            (toggle-running))
-           (print-z80 true)
-           :quit)
-      ;; print z80 state
-      \p (do
-           (print-z80 true)
-           (recur))
-      ;; print IR
-      \i (do
-           (print decode)
-           (recur))
-      (do
-        (print "invalid command")
-        (recur)))))
+    (let [input (read-line)]
+      (case (first input)
+        ;; execute next
+        \n nil
+        ;; quit
+        \q (do
+             (println "quitting")
+             (dosync
+              (toggle-running))
+             (print-z80 true)
+             :quit)
+        ;; print z80 state
+        \p (do
+             (print-z80 true)
+             (recur))
+        ;; print IR
+        \i (do
+             (print decode)
+             (recur))
+        ;; dump memory location
+        \x (let [[_ x y] (str/split input #" ")]
+             (if-let [loc (parse-long x)]
+               (if-let [len (parse-long y)]
+                 (hex-dump (read-mem-vector loc len) loc)
+                 (println (format-hex (read-mem loc))))
+               (print "must provide location"))
+             (recur))
+        ;; else
+        (do
+          (print "invalid command")
+          (recur))))))
 
 
 (defn execute-step
