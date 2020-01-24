@@ -56,12 +56,13 @@
 (defn parse-long
   "Safely parse long in dec, hex ."
   [s]
-  (let [[radix digits] (guess-radix s)]
-    (try
-      (if (= radix 10)
-        (Long/parseLong (or digits ""))
-        (Long/parseUnsignedLong (or digits "") radix))
-      (catch NumberFormatException e nil))))
+  (when s
+    (let [[radix digits] (guess-radix s)]
+      (try
+        (if (= radix 10)
+          (Long/parseLong (or digits ""))
+          (Long/parseUnsignedLong (or digits "") radix))
+        (catch NumberFormatException e nil)))))
 
 (defn debugger-loop
   "User interface loop for debugging during stepwise execution."

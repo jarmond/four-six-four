@@ -475,7 +475,7 @@
     {0xCB
      (generic-pattern-reg (str pat "bbb110") bit-map
                           {:op mnemonic :src {:mode :indirect :od [:ix :arg1]} :dest {:mode :bit :od :reg}})}}
-   ;; RLC (IY+d)
+   ;; SET b, (IY+d)
    {0xFD
     {0xCB
      (generic-pattern-reg (str pat "bbb110") bit-map
@@ -641,9 +641,7 @@
                    (if (vector? x)
                      (let [[reg val] x]
                        (if-let [ix (#{:ix :iy} reg)]
-                         [ix (if (> val 127)
-                               (twos-comp val)
-                               val)]
+                         [ix (byte->signed val)]
                          x))
                      x)))))
 

@@ -3,7 +3,7 @@
             [taoensso.timbre :as log]
             [four-six-four.numbers
              :refer
-             [low-nib pop-count-byte rotate-left rotate-right ones-comp
+             [low-nib pop-count-byte rotate-left rotate-right ones-comp byte->signed
              high-byte low-byte two-bytes->int]]
             [four-six-four.z80.vm
              :refer
@@ -52,6 +52,8 @@
          (dosync 
           ~@body)))))
 
+;;; Loads and stores
+
 (declare read-val)
 (defn resolve-indirect [operand]
   (cond
@@ -60,7 +62,6 @@
                         (+ (read-val {:mode :direct :od loc}) val))
     :else operand))
 
-;; TODO handle bit cases?
 (defn read-val [loc]
   (let [{mode :mode operand :od} loc]
     (case mode
@@ -73,6 +74,9 @@
     (case mode
       :direct (write-reg operand val)
       :indirect (write-mem (resolve-indirect operand) val))))
+
+
+;;; Register helpers
 
 (defn reg-8bit?
   "True if `reg` is an 8-bit register."
@@ -93,7 +97,7 @@
      (<= -0x80 x 0x7F)
      (<= -0x8000 x 0x7FFF))))
 
-;;; Loads
+;;; Load group
 
 (defop :ld [dest src]
   (dosync
@@ -359,19 +363,19 @@
 
 ;;; Bit group
 (defop :bit [dest src]
-  (let [b (read-val dest)
+  (let [{b :od} dest
         x (read-val src)]
-    (cond-flag (bit-test x b) :z)))
+    (cond-flag (not (bit-test x b)) :z)))
 
 (defop :set [dest src]
-  (let [b (read-val dest)
+  (let [{b :od} dest
         x (read-val src)]
-    (write-val dest (bit-set x b))))
+    (write-val src (bit-set x b))))
 
 (defop :res [dest src]
-  (let [b (read-val dest)
+  (let [{b :od} dest
         x (read-val src)]
-    (write-val dest (bit-clear x b))))
+    (write-val src (bit-clear x b))))
 
 ;;; Jump group
 
@@ -386,27 +390,31 @@
     :p  (not (test-flag :pv))
     :m  (test-flag :pv)))
 
+
 (defmacro defjumpop
   "Convenience to jump operations."
-  [mnemonic jump-fn]
-  `(defop ~mnemonic [dest# src#]
-     (let [target# (read-val (or src# dest#))
-           jpcond# (when (= (:mode dest#) :jpcond)
-                     (:od dest#))]
-       (when (or (nil? jpcond#) (test-jpcond jpcond#))
-         (~jump-fn target#)))))
+  [mnemonic jump-fn relative?]
+  (let [target (gensym)]
+    `(defop ~mnemonic [dest# src#]
+       (let [~target (read-val (or src# dest#))
+             ~@(when relative?
+                 `(~target (byte->signed ~target)))
+             jpcond# (when (= (:mode dest#) :jpcond)
+                       (:od dest#))]
+         (when (or (nil? jpcond#) (test-jpcond jpcond#))
+           (~jump-fn ~target))))))
 
 
-(defjumpop :jp set-pc)
-(defjumpop :jr inc-pc)
+(defjumpop :jp set-pc false)
+(defjumpop :jr inc-pc true)
 
 
 (def register-b {:mode :direct :od :b})
 (defop :djnz [src]
-  (let [target (read-val src)
+  (let [target (byte->signed (read-val src))
         b (dec (read-val register-b))]
     (write-val register-b b)
-    (when (zero? b)
+    (when (pos? b)
       (inc-pc target))))
 
 ;;; Call and return group
@@ -422,7 +430,7 @@
     (write-val stack-pointer sp-2)
     (set-pc target)))
 
-(defjumpop :call push-pc-and-jump)
+(defjumpop :call push-pc-and-jump false)
 
 (defop :ret [src]
   (let [jpcond (:jpcond src)]

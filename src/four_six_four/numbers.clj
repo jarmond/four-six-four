@@ -90,3 +90,10 @@
   (if (neg? x)
     (+ (bit-and x 0x7F) 0x7F)
     x))
+
+(defn byte->signed
+  "If `x`>127 convert to negative two-signed complement."
+  [x]
+  (if (> x 127)
+    (twos-comp x)
+    x))

@@ -66,7 +66,7 @@ exit:
 ; E        SECOND ELEMENT IN COMPARISON
 ; H        FLAG TO INDICATE EXCHANGE
 ; L        UNUSED
-; IX       POINTER INTO DATA ARRAY UNUSED
+; IX       POINTER INTO DATA ARRAY
 ; IY       UNUSED
 ;
 SORT:      LD (DATA), HL
@@ -115,7 +115,7 @@ DATA:      DEFS 2
       0x76]
      :asm
      [{:op :ld   :dest {:mode :indirect :od DATA} :src {:mode :direct :od :hl}} ; LD (DATA), HL
-      {:op :res  :src  {:mode :direct :od :h :bit FLAG}}
+      {:op :res  :src  {:mode :direct :od :h} :dest {:mode :bit :od FLAG}}
       {:op :ld   :dest {:mode :direct :od :b} :src {:mode :direct :od :c}}
       {:op :dec  :src  {:mode :direct :od :b}}
       {:op :ld   :dest {:mode :direct :od :idx} :src {:mode :indirect :od DATA}}
@@ -123,12 +123,12 @@ DATA:      DEFS 2
       {:op :ld   :dest {:mode :direct :od :d} :src {:mode :direct :od :a}}
       {:op :ld   :dest {:mode :direct :od :e} :src {:mode :indirect :od [:ix 1]}}
       {:op :sub  :src {:mode :direct :od :e}}
-      {:op :jr   :src {:mode :imm :od 10 :cond :nc}}
+      {:op :jr   :src {:mode :imm :od 10} :dest {:mode :jpcond :od :nc}}
       {:op :ld   :dest {:mode :indirect :od :ix} :src {:mode :direct :od :e}}
       {:op :ld   :dest {:mode :indirect :od [:ix 1]} :src {:mode :direct :od :d}}
-      {:op :set  :src {:mode :direct :od :h :bit FLAG}}
+      {:op :set  :src {:mode :direct :od :h} :dest {:mode :bit :od FLAG}}
       {:op :inc  :src {:mode :direct :od :ix}}
       {:op :djnz :src {:mode :imm :od -20}}
-      {:op :bit  :src {:mode :direct :od :h :bit FLAG}}
-      {:op :jr   :src {:mode :imm :od -32 :cond :nz}}
+      {:op :bit  :src {:mode :direct :od :h} :dest {:mode :bit :od FLAG}}
+      {:op :jr   :src {:mode :imm :od -32} :dest {:mode :jpcond :od :nz}}
       {:op :halt}]}))

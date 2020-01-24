@@ -11,7 +11,6 @@
 
 (use-fixtures :each z80-fixture)
 
-
 (def test-string (mapv int "Amstrad CPC 464"))
 
 (deftest program-test
@@ -22,4 +21,17 @@
      (write-reg :de 0x200)
      (write-reg :hl 0x100))
     (execute-program (:object p/memcpy) (:origin p/memcpy))
-    (is (= test-string (read-mem-vector 0x100 (count test-string))))))
+    (is (= test-string (read-mem-vector 0x100 (count test-string)))))
+
+  (testing "bubble-sort"
+    (let [n 10
+          data (repeatedly n #(rand-int 255))
+          loc 0x100]
+      (reset)
+      (dosync
+       (write-mem-vector loc data)
+       (write-reg :hl loc)
+       (write-reg :c n))
+      (execute-program (:object p/bubble-sort) (:origin p/bubble-sort))
+      (is (= (reverse (sort data)) (read-mem-vector loc n))))))
+
