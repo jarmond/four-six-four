@@ -132,3 +132,52 @@ DATA:      DEFS 2
       {:op :bit  :src {:mode :direct :od :h} :dest {:mode :bit :od FLAG}}
       {:op :jr   :src {:mode :imm :od -32} :dest {:mode :jpcond :od :nz}}
       {:op :halt}]}))
+
+(def multiply
+  {:url "Zilog_Z-80_CPU_Technical_Manual.pdf?page=73"
+   :source "
+MULT:; UNSIGNED SIXTEEN BIT INTEGER MULTIPLY.
+;      ON ENTRANCE: MULTIPLIER IN DE.
+;                   MULTIPLICAND IN HL.
+;      ON EXIT: RESULT IN HL.
+;      REGISTER USES:
+;      H HIGH ORDER PARTIAL RESULT
+;      L LOW ORDER PARTIAL RESULT
+;      D HIGH ORDER MULTIPLICAND
+;      E LOW ORDER MULTIPLICAND
+;      B COUNTER FOR NUMBER OF SHIFTS
+;      C HIGH ORDER BITS OF MULTIPLIER
+;      A LOW ORDER BITS OF MULTIPLIER
+;
+       LD B,16
+       LD C,D
+       LD A,E
+       EX DE,HL
+       LD HL,O
+MLOOP: SRL C
+       RRA
+       JR NC, NOADD-$
+       ADD HL,DE
+NOADD: EX DE,HL
+       ADD HL,HL
+       EX DE,HL
+       DJNZ MLOOP-$
+       HALT
+       END
+"
+   :origin 0x1000
+   :object [0x06 0x10 0x4a 0x7b 0xeb 0x21 0x00 0x00 0xcb 0x39 0x1f 0x30 0x01 0x19 0xeb 0x29 0xeb 0x10 0xf5 0x76]
+   :asm [{:op :ld, :dest {:mode :direct, :od :b}, :src {:mode :imm, :od 16}}
+         {:op :ld, :dest {:mode :direct, :od :c}, :src {:mode :direct, :od :d}}
+         {:op :ld, :dest {:mode :direct, :od :a}, :src {:mode :direct, :od :e}}
+         {:op :ex, :dest {:mode :direct, :od :de}, :src {:mode :direct, :od :hl}}
+         {:op :ld, :dest {:mode :direct, :od :hl}, :src {:mode :imm, :od 0}}
+         {:op :srl, :src {:mode :direct, :od :c}}
+         {:op :rra}
+         {:op :jr, :src {:mode :imm, :od 1}, :dest {:mode :jpcond, :od :nc}}
+         {:op :add, :dest {:mode :direct, :od :hl}, :src {:mode :direct, :od :de}}
+         {:op :ex, :dest {:mode :direct, :od :de}, :src {:mode :direct, :od :hl}}
+         {:op :add, :dest {:mode :direct, :od :hl}, :src {:mode :direct, :od :hl}}
+         {:op :ex, :dest {:mode :direct, :od :de}, :src {:mode :direct, :od :hl}}
+         {:op :djnz, :src {:mode :imm, :od 245}}
+         {:op :halt}]})

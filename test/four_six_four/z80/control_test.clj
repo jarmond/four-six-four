@@ -33,5 +33,15 @@
        (write-reg :hl loc)
        (write-reg :c n))
       (execute-program (:object p/bubble-sort) (:origin p/bubble-sort))
-      (is (= (reverse (sort data)) (read-mem-vector loc n))))))
+      (is (= (reverse (sort data)) (read-mem-vector loc n)))))
+
+  (testing "multiply"
+    (let [x 1234
+          y 786]
+      (reset)
+      (dosync
+       (write-reg :de x)
+       (write-reg :hl y))
+      (execute-program (:object p/multiply) (:origin p/multiply))
+      (is (= (* x y) (read-reg :hl))))))
 
