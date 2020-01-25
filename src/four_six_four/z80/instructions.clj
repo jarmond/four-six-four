@@ -481,3 +481,15 @@
 (defop :outdr [src]
   (log/warn "STUB OUTDR"))
 
+
+;;; Exchange and block transfer/search group
+
+(defop :ex [dest src]
+  (let [tmp (read-val src)]
+    (write-val src (read-val dest))
+    (write-val dest tmp)))
+
+(defop :exx []
+  (operation {:op :exx :dest {:mode :direct :od :bc} :src {:mode :direct :od :bc'}})
+  (operation {:op :exx :dest {:mode :direct :od :de} :src {:mode :direct :od :de'}})
+  (operation {:op :exx :dest {:mode :direct :od :hl} :src {:mode :direct :od :hl'}}))
