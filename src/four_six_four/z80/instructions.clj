@@ -322,7 +322,7 @@
 
 (defop :neg []
   (let [x (read-val accumulator)
-        r (- x)]
+        r (bit-and 0xFF (- x))]
     (cond-flag (zero? r) :z)
     (cond-flag (reg-overflow? true x) :pv)
     (set-flag :n)
