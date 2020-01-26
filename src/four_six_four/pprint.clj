@@ -44,7 +44,7 @@
         src-str (cond
                   (keyword? od) (name od)
                   (vector? od) (cl-format nil "~a~[~:;+~:*~a~]" (name (first od)) (second od))
-                  :else (format-hex od))]
+                  :else (str (format-hex od) "h"))]
     (cl-format nil "~:[~;(~]~a~a~3:*~:[~;)~]"
                (= mode :indirect)
                dest-str
