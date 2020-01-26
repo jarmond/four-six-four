@@ -569,7 +569,7 @@
                   {:op :in :dest {:mode :direct :od :reg} :src {:mode :indirect :od :c}})
     ;; OUT (C), r
     (pattern-reg1 "01rrr001"
-                  {:op :in :src {:mode :direct :od :reg} :dest {:mode :indirect :od :c}}))}
+                  {:op :out :src {:mode :direct :od :reg} :dest {:mode :indirect :od :c}}))}
   {0xED
    ;; IN flags, (C)
    {0x70
