@@ -36,8 +36,8 @@
       (is (= (reverse (sort data)) (read-mem-vector loc n)))))
 
   (testing "multiply"
-    (let [x 1234
-          y 786]
+    (let [x 1024
+          y 60]
       (reset)
       (dosync
        (write-reg :de x)

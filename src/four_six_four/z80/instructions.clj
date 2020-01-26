@@ -3,7 +3,7 @@
             [taoensso.timbre :as log]
             [four-six-four.numbers
              :refer
-             [low-nib pop-count-byte rotate-left rotate-right ones-comp byte->signed
+             [low-nib high-nib pop-count-byte rotate-left rotate-right ones-comp byte->signed
              high-byte low-byte two-bytes->int]]
             [four-six-four.z80.vm
              :refer
@@ -214,9 +214,10 @@
 (defmacro defrotop
   "Convenience to define rotate and shift operations. Options are:
   :accumulator  operate on accumulator
-  :lr           either :left or :right, whether to set carry to msb or lsb"
-  [mnemonic op-fn {acc? :accumulator lr :lr carry? :carry}]
-  (let [[src x r c] (repeatedly gensym)
+  :lr           either :left or :right, whether to set carry to msb or lsb
+  :carry        carry logic, one of :shift, :carry, :rotate"
+  [mnemonic op-fn {acc? :accumulator lr :lr carry :carry}]
+  (let [[src x r r2 c] (repeatedly gensym)
         ;; Bit to copy for carry: msb or lsb for left or right rotates.
         out (case lr
               :left 7
@@ -227,36 +228,37 @@
 
     `(defop ~mnemonic [~@(when-not acc? `(~src))]
        (let [~x (read-val ~(if acc? accumulator src))
-             ~r (~op-fn ~x)]
-         ;; If a carry instruction, copy new flag, otherwise copy old carry.
-         ~(if carry?
-            `(if (bit-test ~x ~out)
-               (bit-set ~r ~in)
-               (bit-clear ~r ~in))
-            `(if (test-flag :c)
-               (bit-set ~r ~in)
-               (bit-clear ~r ~in)))
+             ~r (~op-fn ~x)
+             ;; If a carry instruction, copy new flag, otherwise copy old carry.
+             ~r2 ~(case carry
+                    :carry `(if (bit-test ~x ~out)
+                              (bit-set ~r ~in)
+                              ~r)
+                    :rotate `(if (test-flag :c)
+                               (bit-set ~r ~in)
+                               ~r)
+                    :shift r)]
 
          ;; Set carry flag.
          (cond-flag (bit-test ~x ~out) :c)
 
          ;; Set zero and parity flags for non-accumulator operands.
-         ~(when-not acc?
-            `((cond-flag (zero? ~r) :z)
-              (cond-flag (even? (pop-count-byte ~r)) :pv))) ; Parity flag
+         ~@(when-not acc?
+            `((cond-flag (zero? ~r2) :z)
+              (cond-flag (even? (pop-count-byte ~r2)) :pv) ; Parity flag
+              (cond-flag (bit-test ~r2 7) :s))) ; Sign flag
 
          ;; Constantly reset flags.
          (reset-flag :h)
          (reset-flag :n)
-         (cond-flag (bit-test ~r 7) :s) ; Sign flag
 
          ;; Store value
-         (write-val ~(if acc? accumulator src) ~r)))))
+         (write-val ~(if acc? accumulator src) ~r2)))))
 
-(defn rotate-left1 [x]
+#_(defn rotate-left1 [x]
   (-> (rotate-left x 1)
       (bit-and 0xFF)))
-(defn rotate-right1 [x]
+#_(defn rotate-right1 [x]
   (-> (rotate-right x 1)
       (bit-and 0xFF)))
 (defn shift-left1 [x]
@@ -266,21 +268,39 @@
   (-> (bit-shift-right x 1)
       (bit-and 0xFF)))
 (defn arith-shift-right1 [x]
-  (-> (bit-or 0xFFFFFF00)
+  (-> (bit-or 0xFFFFFF00 x)
       (bit-shift-right 1)
       (bit-and 0xFF)))
 
-(defrotop :rla  rotate-left1  {:accumulator true, :lr :left})
-(defrotop :rra  rotate-right1 {:accumulator true, :lr :right})
-(defrotop :rlca rotate-left1  {:accumulator true, :lr :left, :carry true})
-(defrotop :rrca rotate-right1 {:accumulator true, :lr :right, :carry true})
-(defrotop :rl   rotate-left1  {:lr :left})
-(defrotop :rr   rotate-right1 {:lr :right})
-(defrotop :rlc  rotate-left1  {:lr :left, :carry true})
-(defrotop :rrc  rotate-right1 {:lr :right, :carry true})
-(defrotop :sra  arith-shift-right1 {:lr :right})
-(defrotop :srl  shift-right1  {:lr :right})
-(defrotop :sla  shift-left1   {:lr :left})
+(defrotop :rla  shift-left1  {:accumulator true, :lr :left, :carry :rotate})
+(defrotop :rra  shift-right1 {:accumulator true, :lr :right, :carry :rotate})
+(defrotop :rlca shift-left1  {:accumulator true, :lr :left, :carry :carry})
+(defrotop :rrca shift-right1 {:accumulator true, :lr :right, :carry :carry})
+(defrotop :rl   shift-left1  {:lr :left, :carry :rotate})
+(defrotop :rr   shift-right1 {:lr :right, :carry :rotate})
+(defrotop :rlc  shift-left1  {:lr :left, :carry :carry})
+(defrotop :rrc  shift-right1 {:lr :right, :carry :carry})
+(defrotop :sra  arith-shift-right1 {:lr :right, :carry :shift})
+(defrotop :srl  shift-right1  {:lr :right, :carry :shift})
+(defrotop :sla  shift-left1   {:lr :left, :carry :shift})
+
+(def reg-indirect-hl {:mode :indirect :od :hl})
+(defop :rld []
+  (let [hl (read-val reg-indirect-hl)
+        acc (read-val accumulator)]
+    (write-val reg-indirect-hl (bit-or (bit-and 0xFF (bit-shift-left hl 4))
+                                       (low-nib acc)))
+    (write-val accumulator (bit-or (bit-and 0xF0 acc)
+                                   (high-nib hl)))))
+
+(defop :rrd []
+  (let [hl (read-val reg-indirect-hl)
+        acc (read-val accumulator)]
+    (write-val reg-indirect-hl (bit-or (bit-shift-right hl 4)
+                                       (bit-shift-left (low-nib acc) 4)))
+    (write-val accumulator (bit-or (bit-and 0xF0 acc)
+                                   (low-nib hl)))))
+
 
 ;;; General-purpose arithmetic
 

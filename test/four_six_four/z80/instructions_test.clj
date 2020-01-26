@@ -149,6 +149,65 @@
 
   )
 
+(deftest rotate-shift-test
+  (testing "RLCA"
+    (test-program ["ld a, 0x88"
+                   "rlca"]
+                  {:acc 0x11 :set-flags #{:c}}))
+  (testing "RLA"
+    (test-program ["ld a, 0x76"
+                   "scf"
+                   "rla"]
+                  {:acc 0xed :reset-flags #{:c}}))
+  (testing "RRCA"
+    (test-program ["ld a, 0x11"
+                   "rrca"]
+                  {:acc 0x88 :set-flags #{:c}}))
+  (testing "RRA"
+    (test-program ["ld a, 0xe1"
+                   "rcf"
+                   "rra"]
+                  {:acc 0x70 :set-flags #{:c}}))
+  (testing "RLC"
+    (test-program ["ld b, 0x88"
+                   "rlc b"]
+                  {:b 0x11 :set-flags #{:c}}))
+  (testing "RL"
+    (test-program ["ld d, 0x8f"
+                   "rcf"
+                   "rl d"]
+                  {:d 0x1e :set-flags #{:c}}))
+  (testing "RR"
+    (test-program ["ld c, 0xdd"
+                   "rcf"
+                   "rr c"]
+                  {:c 0x6e :set-flags #{:c}}))
+  (testing "SLA"
+    (test-program ["ld l, 0xb1"
+                   "sla l"]
+                  {:l 0x62 :set-flags #{:c}}))
+  (testing "SRA"
+    (test-program ["ld b, 0xb8"
+                   "sra b"]
+                  {:b 0xdc :reset-flags #{:c}}))
+  (testing "SRL"
+    (test-program ["ld b, 0x8f"
+                   "srl b"]
+                  {:b 0x47 :set-flags #{:c}})) 
+  (testing "RLD"
+    (test-program ["ld hl, 0x5000"
+                   "ld (hl), 0x31"
+                   "ld a, 0x7a"
+                   "rld"]
+                  {:acc 0x73 :mem [0x5000 0x1a]}))
+  (testing "RRD"
+    (test-program ["ld hl, 0x5000"
+                   "ld (hl), 0x20"
+                   "ld a, 0x84"
+                   "rrd"]
+                  {:acc 0x80 :mem [0x5000 0x42]}))
+  )
+
 (defn run-test-program-standalone
   [program]
   (let [asm (if (vector? program) (str/join "\n" program) program)]
