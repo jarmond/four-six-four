@@ -172,6 +172,8 @@
     (inc-pc)
     byte))
 
+;;; Running state
+
 (defn is-running
   []
   @(:running? *z80*))
@@ -187,6 +189,18 @@
 (defn inc-refresh
   []
   (commute (:registers *z80*) update :r inc))
+
+;;; Trapping
+
+(def traps (atom {}))
+
+(defn register-trap [code f]
+  (swap! traps assoc code f))
+
+(defn call-trap [code]
+  ((get @traps code (fn [] (log/warn "Unhandled trap: " code)))))
+
+;;; Debugging
 
 (defn print-z80
   ([print? z80]

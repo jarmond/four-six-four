@@ -23,6 +23,7 @@
               toggle-flag
               write-mem
               write-reg
+              call-trap
               toggle-running]]))
 
 ;;; Instructions
@@ -51,6 +52,11 @@
              ~@(when src `(~src (:src ~instr)))]
          (dosync 
           ~@body)))))
+
+;;; Emulator trap
+
+(defop :trap [src]
+  (call-trap (read-val src)))
 
 ;;; Loads and stores
 
