@@ -9,6 +9,7 @@
              :refer
              [cond-flag
               read-mem
+              read-mem-vector
               read-reg
               reset-flag
               set-flag
@@ -22,7 +23,9 @@
               inc-pc
               toggle-flag
               write-mem
+              write-mem-vector
               write-reg
+              alter-reg
               call-trap
               toggle-running]]))
 
@@ -193,7 +196,7 @@
   "Convenience to define logical operations."
   [mnemonic op-fn {half :half}]
   `(defop ~mnemonic [src#]
-     (let [x# (read-val accumulator)
+     (let [x# (read-reg :a)
            y# (read-val src#)
            r# (~op-fn x# y#)]
 
@@ -209,7 +212,7 @@
           '(set-flag :h)
           '(reset-flag :h))
        (cond-flag (bit-test r# 8) :s);           Sign flag
-       (write-val accumulator r#))))
+       (write-reg :a r#))))
 
 (deflogop :and bit-and {:half true})
 (deflogop :or  bit-or  {:half false})
@@ -293,19 +296,19 @@
 (def reg-indirect-hl {:mode :indirect :od :hl})
 (defop :rld []
   (let [hl (read-val reg-indirect-hl)
-        acc (read-val accumulator)]
+        acc (read-reg :a)]
     (write-val reg-indirect-hl (bit-or (bit-and 0xFF (bit-shift-left hl 4))
                                        (low-nib acc)))
-    (write-val accumulator (bit-or (bit-and 0xF0 acc)
-                                   (high-nib hl)))))
+    (write-reg :a (bit-or (bit-and 0xF0 acc)
+                          (high-nib hl)))))
 
 (defop :rrd []
   (let [hl (read-val reg-indirect-hl)
-        acc (read-val accumulator)]
+        acc (read-reg :a)]
     (write-val reg-indirect-hl (bit-or (bit-shift-right hl 4)
                                        (bit-shift-left (low-nib acc) 4)))
-    (write-val accumulator (bit-or (bit-and 0xF0 acc)
-                                   (low-nib hl)))))
+    (write-reg :a (bit-or (bit-and 0xF0 acc)
+                          (low-nib hl)))))
 
 
 ;;; General-purpose arithmetic
@@ -337,24 +340,24 @@
       [0 false])))
 
 (defop :daa []
-  (let [acc (read-val accumulator)
+  (let [acc (read-reg :a)
         low (low-byte acc)
         high (high-byte acc)
         [adj carry] (if (test-flag :n)
                       (daa-sub high low)
                       (daa-add high low))]
-    (write-val accumulator (+ acc adj))
+    (write-reg :a (+ acc adj))
     (cond-flag carry :c)))
 
 (defop :neg []
-  (let [x (read-val accumulator)
+  (let [x (read-reg :a)
         r (bit-and 0xFF (- x))]
     (cond-flag (zero? r) :z)
     (cond-flag (reg-overflow? true x) :pv)
     (set-flag :n)
     (cond-flag (not (zero? x)) :c)
     (cond-flag (pos? (low-nib x)) :h)
-    (write-val accumulator r)))
+    (write-reg :a r)))
 
 (defop :scf []
   (set-flag :c)
@@ -368,7 +371,7 @@
 (defop :cpl []
   (set-flag :h)
   (set-flag :n)
-  (-> accumulator read-val ones-comp (write-val accumulator)))
+  (-> :a read-reg ones-comp (write-reg :a)))
 
 (defop :nop [])
 
@@ -519,3 +522,78 @@
   (operation {:op :exx :dest {:mode :direct :od :bc} :src {:mode :direct :od :bc'}})
   (operation {:op :exx :dest {:mode :direct :od :de} :src {:mode :direct :od :de'}})
   (operation {:op :exx :dest {:mode :direct :od :hl} :src {:mode :direct :od :hl'}}))
+
+;; macro on dec/inc for ldd
+(defn transfer-byte
+  "Implementation of LDI/LDD."
+  [succ]
+  (let [src (read-reg :hl)
+        dest (read-reg :de)]
+    (write-mem dest (read-mem src))
+    (alter-reg :hl succ)
+    (alter-reg :de succ)
+    (cond-flag (pos? (alter-reg :bc dec)) :pv)
+    (reset-flag :n)
+    (reset-flag :h)))
+
+(defop :ldi []
+  (transfer-byte inc))
+
+(defop :ldd []
+  (transfer-byte dec))
+
+(defn block-transfer [addr-trans]
+  (let [src (read-reg :hl)
+        dest (read-reg :de)
+        len (read-reg :bc)]
+    (write-mem-vector (addr-trans dest len) (read-mem-vector (addr-trans src len) len))
+    (write-reg :bc 0)
+    (reset-flag :pv)
+    (reset-flag :n)
+    (reset-flag :h)))
+
+;; NOTE these block instructions are implements as loops in the Z80, by PC<-PC-2 if BC!=0
+(defop :ldir []
+  (block-transfer #(%1)))
+
+(defop :lddr []
+  (block-transfer #(inc (- %1 %2))))
+
+(defn search-byte [succ]
+  [succ]
+  (let [acc (read-reg :a)
+        val (read-val reg-indirect-hl)
+        cmp (- acc val)]
+    (cond-flag (zero? cmp) :z)
+    (cond-flag (neg? cmp) :s)
+    (alter-reg :hl succ)
+    (alter-reg :bc dec)
+    (cond-flag (pos? (alter-reg :bc dec)) :pv)
+    (set-flag :n)))
+
+(defop :cpi []
+  (search-byte inc))
+
+(defop :cpd []
+  (search-byte dec))
+
+(defn search-block [addr-trans count-trans]
+  (let [val (read-reg :a)
+        src (read-reg :hl)
+        len (read-reg :bc)
+        blk (read-mem-vector (addr-trans src len))
+        match (.indexOf blk val)]
+    (if (neg? match)
+      (do
+        (write-reg :bc 0)
+        (reset-flag :pv))
+      (do
+        (write-reg :bc (count-trans len match))
+        (set-flag :pv)))
+    (set-flag :n)))
+
+(defop :cpir []
+  (search-block #(%1) #(- %1 %2)))
+
+(defop :cpdr []
+  (search-block #(inc (- %1 %2)) #(%1)))
