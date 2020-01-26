@@ -1,12 +1,13 @@
 (ns four-six-four.cdt
-  (:require [clojure.pprint :refer [cl-format]]
+  (:require [clojure.java.io :as io]
+            [clojure.pprint :refer [cl-format]]
             [clojure.string :as str]
             [clojure.walk :refer [postwalk]]
             [four-six-four.numbers :refer [be-bytes->int ceil-log2 le-bytes->int]]
+            [four-six-four.pprint :refer [hex-dump print-assembly]]
             [four-six-four.streams :as stream]
             [four-six-four.utils :refer [crc16 ensure-vector]]
-            [four-six-four.z80.fetch :refer [disassemble]]
-            [four-six-four.pprint :refer [print-assembly hex-dump]])
+            [four-six-four.z80.fetch :refer [disassemble]])
   (:import [java.io ByteArrayInputStream FileInputStream]))
 
 ;;;; CDT tape image format stream.
@@ -363,9 +364,13 @@
 
 (defn cdt-cat
   "Print content of file in various forms."
-  [cdt filename format]
-  (let [data (cdt-extract cdt filename)]
-    (case format
-      :disassemble (print-assembly (disassemble data))
-      :text (print (apply str (map char data)))
-      :hex (hex-dump data))))
+  ([cdt filename format outfile]
+   (with-open [w (io/writer outfile)]
+     (binding [*out* w]
+       (cdt-cat cdt filename format))))
+  ([cdt filename format]
+   (let [data (cdt-extract cdt filename)]
+     (case format
+       :disassemble (print-assembly (disassemble data))
+       :text (print (apply str (map char data)))
+       :hex (hex-dump data)))))

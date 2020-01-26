@@ -36,18 +36,13 @@
 ;;; Instructions
 
 (defn format-loc
-  [{:keys [mode od bit jpcond]}]
-  (let [dest-str (cond
-                   bit (str bit ",")
-                   jpcond (str (name jpcond) ",")
-                   :else "")
-        src-str (cond
+  [{:keys [mode od]}]
+  (let [src-str (cond
                   (keyword? od) (name od)
                   (vector? od) (cl-format nil "~a~[~:;+~:*~a~]" (name (first od)) (second od))
                   :else (str (format-hex od) "h"))]
-    (cl-format nil "~:[~;(~]~a~a~3:*~:[~;)~]"
+    (cl-format nil "~:[~;(~]~a~2:*~:[~;)~]"
                (= mode :indirect)
-               dest-str
                src-str)))
 
 (defn format-instr
@@ -68,7 +63,7 @@
   [assembly]
   (doall
    (->> assembly
-        (map format-decode)
+        (map (comp str/trimr format-decode))
         (str/join "\n"))))
 
 (defn print-assembly
