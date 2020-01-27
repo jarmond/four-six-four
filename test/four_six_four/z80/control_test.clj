@@ -45,3 +45,17 @@
       (execute-program (:object p/multiply) (:origin p/multiply))
       (is (= (* x y) (read-reg :hl))))))
 
+
+(deftest block-instructions-test
+  (testing "LDDR"
+    (let [src [0xa5 0x36 0x88]]
+      (reset)
+      (dosync
+       (write-reg :hl 0x1114)
+       (write-reg :de 0x2225)
+       (write-reg :bc 3)
+       (write-mem-vector 0x1112 src)
+       (write-mem-vector 0x2223 [0xc5 0x59 0x66]))
+      (execute-program [0xed 0xb8 0x76] 0)
+      (is (= src (read-mem-vector 0x2223 3))))))
+

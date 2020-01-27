@@ -532,7 +532,8 @@
     (write-mem dest (read-mem src))
     (alter-reg :hl succ)
     (alter-reg :de succ)
-    (cond-flag (pos? (alter-reg :bc dec)) :pv)
+    (alter-reg :bc dec)
+    (cond-flag (pos? (read-reg :bc)) :pv)
     (reset-flag :n)
     (reset-flag :h)))
 
@@ -542,22 +543,15 @@
 (defop :ldd []
   (transfer-byte dec))
 
-(defn block-transfer [addr-trans]
-  (let [src (read-reg :hl)
-        dest (read-reg :de)
-        len (read-reg :bc)]
-    (write-mem-vector (addr-trans dest len) (read-mem-vector (addr-trans src len) len))
-    (write-reg :bc 0)
-    (reset-flag :pv)
-    (reset-flag :n)
-    (reset-flag :h)))
-
-;; NOTE these block instructions are implements as loops in the Z80, by PC<-PC-2 if BC!=0
 (defop :ldir []
-  (block-transfer #(%1)))
+  (transfer-byte inc)
+  (when (test-flag :pv)
+    (inc-pc -2)))
 
 (defop :lddr []
-  (block-transfer #(inc (- %1 %2))))
+  (transfer-byte dec)
+  (when (test-flag :pv)
+    (inc-pc -2)))
 
 (defn search-byte [succ]
   [succ]
@@ -568,7 +562,7 @@
     (cond-flag (neg? cmp) :s)
     (alter-reg :hl succ)
     (alter-reg :bc dec)
-    (cond-flag (pos? (alter-reg :bc dec)) :pv)
+    (cond-flag (pos? (read-reg :bc)) :pv)
     (set-flag :n)))
 
 (defop :cpi []
@@ -577,23 +571,12 @@
 (defop :cpd []
   (search-byte dec))
 
-(defn search-block [addr-trans count-trans]
-  (let [val (read-reg :a)
-        src (read-reg :hl)
-        len (read-reg :bc)
-        blk (read-mem-vector (addr-trans src len))
-        match (.indexOf blk val)]
-    (if (neg? match)
-      (do
-        (write-reg :bc 0)
-        (reset-flag :pv))
-      (do
-        (write-reg :bc (count-trans len match))
-        (set-flag :pv)))
-    (set-flag :n)))
-
 (defop :cpir []
-  (search-block #(%1) #(- %1 %2)))
+  (search-byte inc)
+  (when (and (not (test-flag :z)) (test-flag :pv))
+    (inc-pc -2)))
 
 (defop :cpdr []
-  (search-block #(inc (- %1 %2)) #(%1)))
+  (search-byte dec)
+  (when (and (not (test-flag :z)) (test-flag :pv))
+    (inc-pc -2)))

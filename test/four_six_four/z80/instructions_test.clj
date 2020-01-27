@@ -3,7 +3,7 @@
             [four-six-four.z80.control :refer [execute-program-sequence]]
             [four-six-four.z80.vm
              :refer
-             [*z80* make-z80 read-reg read-mem reset flags set-flag test-flag print-z80 with-z80]]
+             [*z80* make-z80 read-reg read-mem-vector read-mem reset flags set-flag test-flag print-z80 with-z80]]
             [four-six-four.z80.parser :refer [parse-assembly]]
             [clojure.string :as str]))
 
@@ -23,6 +23,7 @@
                          :set-flags (into #{} (keep #(when (test-flag %) %) v))
                          :reset-flags (into #{} (keep #(when-not (test-flag %) %) v))
                          :mem [(first v) (read-mem (first v))]
+                         :mem-block [(first v) (second v) (read-mem-vector (first v) (second v))]
                          (read-reg k))))
           {}
           expected))
