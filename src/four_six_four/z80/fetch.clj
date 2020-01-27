@@ -70,16 +70,18 @@
 
 (defn disassemble
   "Disassemble bytes to assembly."
-  [xs]
-  (let [n (count xs)
-        stream (java.io.ByteArrayInputStream. (byte-array xs))
-        get-byte #(.read stream)]
-    (loop [asm []]
-      (if (zero? (.available stream))
-        asm
-        (recur (conj asm
-                     (merge {:loc (- n (.available stream))}
-                             (fetcher get-byte))))))))
+  ([xs]
+   (disassemble xs 0))
+  ([xs offset]
+   (let [n (count xs)
+         stream (java.io.ByteArrayInputStream. (byte-array xs))
+         get-byte #(.read stream)]
+     (loop [asm []]
+       (if (zero? (.available stream))
+         asm
+         (recur (conj asm
+                      (merge {:loc (+ offset (- n (.available stream)))}
+                             (fetcher get-byte)))))))))
 
 
 (defn disassemble-file

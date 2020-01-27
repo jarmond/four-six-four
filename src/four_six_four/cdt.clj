@@ -1,6 +1,6 @@
 (ns four-six-four.cdt
   (:require [clojure.java.io :as io]
-            [clojure.pprint :refer [cl-format]]
+            [clojure.pprint :refer [cl-format pprint]]
             [clojure.string :as str]
             [clojure.walk :refer [postwalk]]
             [four-six-four.numbers :refer [be-bytes->int ceil-log2 le-bytes->int]]
@@ -373,4 +373,5 @@
      (case format
        :disassemble (print-assembly (disassemble data))
        :text (print (apply str (map char data)))
+       :ir (pprint (disassemble data))
        :hex (hex-dump data)))))
