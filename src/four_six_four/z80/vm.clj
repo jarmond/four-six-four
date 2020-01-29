@@ -6,7 +6,6 @@
 
 ;;;; Z80 emulation
 
-(def ^:dynamic *debug* true)
 
 ;;; Config
 
