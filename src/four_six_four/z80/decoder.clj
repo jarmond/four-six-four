@@ -589,6 +589,12 @@
     ;; OTDR
     0xBB {:op :otdr}}}))
 
+;;; Fake instructions to control emulator.
+(def emulator-group
+  {0xCB
+   {0x32
+    {:op :trap :src {:mode :imm :od :argword}}}})
+
 (def decoder
   "Merged nested map of decodes. First level is first byte, etc.."
   (merge-decoders
@@ -602,7 +608,8 @@
    bit-set-group
    jump-group
    call-return-group
-   input-output-group))
+   input-output-group
+   emulator-group))
 
 (defn decode-opcode
   "Decode opcode into a symbolic form. Following Tables 7.0-*.
