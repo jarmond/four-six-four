@@ -1,5 +1,6 @@
 (ns four-six-four.pprint
-  (:require [clojure.pprint :refer [cl-format]]
+  (:require [clojure.java.io :as io]
+            [clojure.pprint :refer [cl-format]]
             [clojure.string :as str]))
 
 ;;; Numbers
@@ -67,6 +68,11 @@
         (str/join "\n"))))
 
 (defn print-assembly
-  [assembly]
-  (print (format-assembly assembly)))
+  ([assembly outfile]
+   (with-open [w (io/writer outfile)]
+     (binding [*out* w]
+       (print-assembly assembly))))
+
+  ([assembly]
+   (print (format-assembly assembly))))
 

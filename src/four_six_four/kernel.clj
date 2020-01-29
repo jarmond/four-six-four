@@ -32,7 +32,8 @@
    ;; Register trap handlers
    (doseq [[loc f] trap-map]
      (write-trap loc)
-     (z80/register-trap loc f))
+     ;; Associate handler curried with kernel object
+     (z80/register-trap loc (partial f k)))
 
    ;; Set up stack
    (z80/write-reg :sp +stack-top+)))
@@ -42,9 +43,9 @@
 
 (defmacro defkernfn
   "Construct a kernel routine and register in trap map."
-  [name addr & body]
+  [name args addr & body]
   `(do
-     (defn ~name []
+     (defn ~name [~@args]
        ~@body)
      (alter-var-root #'trap-map assoc ~addr #'~name)))
 
@@ -52,12 +53,15 @@
   (log/warn "STUB:" msg))
 
 (defmacro stub [stub-name addr]
-  `(defkernfn ~stub-name ~addr
+  `(defkernfn ~stub-name [k#] ~addr
      (stub-msg ~(name stub-name))))
 
 ;;; Low Kernel Jumpblock
 
-(stub reset-entry 0) ; RST 0
+(defkernfn reset-entry [k] 0 ; RST 0
+  (z80/reset-z80)
+  (init-kernel k))
+
 (stub low-jump 0x8) ; RST 1
 (stub kl-low-pchl 0xB)
 (stub pcbc-instruction 0xE)

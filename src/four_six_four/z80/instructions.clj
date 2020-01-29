@@ -53,7 +53,7 @@
     `(defmethod operation ~dispatch-val [~instr]
        (let [~@(when dest `(~dest (:dest ~instr)))
              ~@(when src `(~src (:src ~instr)))]
-         (dosync 
+         (dosync
           ~@body)))))
 
 ;;; Loads and stores
@@ -117,20 +117,25 @@
       (cond-flag (zero? val) :z)
       (cond-flag (bit-test val 7) :s))))
 
-(defop :push [src]
-  (let [sp (read-reg :sp)
-        val (read-val src)]
+(defn push-val [val]
+  (let [sp (read-reg :sp)]
     ;; writing 16-bit val
     (write-mem (- sp 1) (high-byte val))
     (write-mem (- sp 2) (low-byte val))
     (alter-reg :sp - 2)))
 
-(defop :pop [src]
+(defop :push [src]
+  (push-val (read-val src)))
+
+(defn pop-val []
   (let [sp (read-reg :sp)
         ;; reading 16-bit val
         val (two-bytes->int (read-mem (inc sp)) (read-mem sp))]
-    (write-val src val)
-    (alter-reg :sp + 2)))
+    (alter-reg :sp + 2))
+  val)
+
+(defop :pop [src]
+  (write-val src (pop-val)))
 
 ;;; Arithmetic group.
 (def accumulator {:mode :direct :od :a})
@@ -464,12 +469,8 @@
 (def stack-pointer {:mode :direct :od :sp})
 (defn push-pc-and-jump
   [target]
-  (let [pc (get-pc)
-        sp-1 (dec (read-val stack-pointer))
-        sp-2 (dec sp-1)]
-    (write-mem sp-1 (high-byte pc))
-    (write-mem sp-2 (low-byte pc))
-    (write-val stack-pointer sp-2)
+  (let [pc (get-pc)]
+    (push-val pc)
     (set-pc target)))
 
 (defjumpop :call push-pc-and-jump false)
@@ -477,10 +478,7 @@
 (defop :ret [src]
   (let [jpcond (:jpcond src)]
     (when (or (nil? jpcond) (test-jpcond jpcond))
-      (let [sp (read-val stack-pointer)
-            sp1 (inc sp)]
-        (set-pc (two-bytes->int (read-mem sp1) (read-mem sp)))
-        (write-val stack-pointer (inc sp1))))))
+      (set-pc (pop-val)))))
 
 (defop :reti []
   (log/warn "STUB: RETI"))
@@ -488,8 +486,12 @@
 (defop :retn []
   (log/warn "STUB: RETN"))
 
-(defop :rst [src]
-  (operation :call src))
+(defop :rst [dest src]
+  (push-val (get-pc))
+  (when dest
+    (push-val (read-val dest)))
+  (let [target (read-val src)]
+    (set-pc target)))
 
 ;;; Input/output group
 

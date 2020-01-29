@@ -82,11 +82,6 @@
   [pattern form]
   (generic-pattern-reg pattern {0 :nz, 1 :z, 2 :nc, 3 :c, 4 :po, 5 :pe, 6 :p, 7 :m} form))
 
-(defn pattern-restart
-  [pattern form]
-  (let [restart (into {} (map-indexed vector [0x00 0x08 0x10 0x18 0x20 0x28 0x30 0x38]))]
-    (generic-pattern-reg pattern restart form)))
-
 (defn generic-pattern-reg2
   "Generate map across all possible pairs of reg operands using a bit `pattern` and
   a `form` with the placeholders :reg1 and :reg2 to be replaced."
@@ -528,6 +523,16 @@
     {:op :jp :src {:mode :direct :od :index}})
    ;; DJNZ e
    {0x10 {:op :djnz :src {:mode :imm :od :arg1}}}))
+
+;; Amstrad CPC specifics:
+;; RSTs 1, 2, 3 and 5 (0x08, 0x10, 0x18, and 0x28) take a 2-byte address
+;; following instruction
+(defn pattern-restart
+  [pattern form]
+  (merge-decoders
+   (generic-pattern-reg pattern {0 0x00, 4 0x20, 6 0x30, 7 0x38} form)
+   (generic-pattern-reg pattern {1 0x08, 2 0x10, 3 0x18, 5 0x28}
+                        (merge form {:dest {:mode :imm :od :argword}}))))
 
 (def call-return-group
   "Table 7.0-10: Call and return group."

@@ -32,16 +32,19 @@
 (defn execute
   "Execute bound VM running program from `start` in memory. Runs until halted."
   [start]
-  (log/infof "Z80 execution begin at 0x%x" start)
-  (dosync
-   (set-pc start)
-   (set-running))
-  (while (is-running)
-    (let [decode (fetch-instruction)]
-      (log/trace (format-decode (merge decode {:loc (get-pc)})))
+  (if *z80*
+    (do
+      (log/infof "Z80 execution begin at 0x%x" start)
       (dosync
-       (inc-refresh))
-      (operation (:instr decode)))))
+       (set-pc start)
+       (set-running))
+      (while (is-running)
+        (let [decode (fetch-instruction)]
+          (log/trace (format-decode (merge decode {:loc (get-pc)})))
+          (dosync
+           (inc-refresh))
+          (operation (:instr decode)))))
+    (log/fatal "No bound Z80"))):
 
 
 (defn guess-radix
@@ -69,7 +72,8 @@
   [decode]
   (loop []
     (newline)
-    (println (format-decode (merge decode {:loc (get-pc)})))
+    (println (format-decode (merge decode  ; subtract off opcode to show start of opcode
+                                   {:loc (- (get-pc) (count (:opcode decode)))})))
     (print "?> ")
     (flush)
     (let [input (read-line)]
@@ -96,7 +100,8 @@
              (if-let [loc (parse-long x)]
                (if-let [len (parse-long y)]
                  (hex-dump (read-mem-vector loc len) loc)
-                 (println (format-hex (read-mem loc))))
+                 (do (newline)
+                     (println (format-hex (read-mem loc)))))
                (print "must provide location"))
              (recur))
         ;; else
@@ -116,8 +121,7 @@
   (while (is-running)
     (let [decode (fetch-instruction)]
       (when-not (= (debugger-loop decode) :quit)
-        (dosync
-         (inc-refresh))
+        (inc-refresh)
         (operation (:instr decode))))))
 
 (defn execute-program
@@ -129,4 +133,3 @@
     (if (:step kwargs)
       (execute-step start)
       (execute start))))
-
