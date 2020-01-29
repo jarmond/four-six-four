@@ -57,7 +57,7 @@
 
           ;; Reconstruct opcode as seen in memory.
           original-opcode
-          (if (seq internal-operand)
+          (if internal-operand
             [prefix1 prefix2 internal-operand last]
             (vec (keep identity (concat [prefix1 prefix2] operands))))]
       {:opcode original-opcode :instr (decode-operands instr operands)})))
