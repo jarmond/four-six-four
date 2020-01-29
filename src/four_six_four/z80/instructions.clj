@@ -109,15 +109,27 @@
 ;;; Load group
 
 (defop :ld [dest src]
-  (dosync
-   (let [val (read-val src)]
-     (write-val dest val)
-     (when (and (= :direct (:mode src))
-                (or (= :r (:od src)) (= :i (:od src))))
-       (cond-flag (test-iff 0) :pv)
-       (cond-flag (zero? val) :z)
-       (cond-flag (bit-test val 7) :s)))))
+  (let [val (read-val src)]
+    (write-val dest val)
+    (when (and (= :direct (:mode src))
+               (or (= :r (:od src)) (= :i (:od src))))
+      (cond-flag (test-iff 0) :pv)
+      (cond-flag (zero? val) :z)
+      (cond-flag (bit-test val 7) :s))))
 
+(defop :push [src]
+  (let [sp (read-reg :sp)
+        val (read-val src)]
+    ;; writing 16-bit val
+    (write-mem (- sp 2) val)
+    (alter-reg :sp (partial - 2))))
+
+(defop :pop [src]
+  (let [sp (read-reg :sp)
+        ;; reading 16-bit val
+        val (read-mem sp)]
+    (write-val src val)
+    (alter-reg :sp (partial + 2))))
 
 ;;; Arithmetic group.
 (def accumulator {:mode :direct :od :a})
