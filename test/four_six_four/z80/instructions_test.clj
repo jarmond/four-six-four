@@ -3,13 +3,13 @@
             [four-six-four.z80.control :refer [execute-program-sequence]]
             [four-six-four.z80.vm
              :refer
-             [*z80* make-z80 read-reg read-mem-vector read-mem reset flags set-flag test-flag print-z80 with-z80]]
+             [*z80* make-z80 read-reg read-mem-vector read-mem reset-z80 flags set-flag test-flag print-z80 with-z80]]
             [four-six-four.z80.parser :refer [parse-assembly]]
             [clojure.string :as str]))
 
 (defn z80-fixture [f]
   (with-z80 (make-z80)
-    (reset)
+    (reset-z80)
     (f)))
 
 (use-fixtures :each z80-fixture)
@@ -32,7 +32,7 @@
   [program]
   (let [asm (if (vector? program) (str/join "\n" program) program)]
     (let [ast (parse-assembly asm)]
-      (reset)
+      (reset-z80)
       (execute-program-sequence ast))))
 
 (defmacro test-program

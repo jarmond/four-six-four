@@ -1,13 +1,44 @@
 (ns four-six-four.kernel
-  (:require [taoensso.timbre :as log]))
+  (:require [four-six-four.z80.vm :as z80]
+            [taoensso.timbre :as log]))
 
+;;; Config
+
+(defonce +trap-opcode+ [0xcb 0x32])
+(defonce +stack-top+ 0xBFFF) ; grows down
+
+;;; State
+
+
+(defrecord Kernel [])
+(defn make-kernel []
+  (map->Kernel {}))
 
 ;; Consider defining special instruction for kernel trap.
 ;; Install it in the kernel ROM locations, each call diverts to here.
 
 (def trap-map
-  "Map of addresses to kernel routines."
+  "Map of addresses to kernel routines. Filled in by `defkernfn`."
   {})
+
+;;; Init
+
+(defn write-trap
+  [loc]
+  (z80/write-mem-vector loc +trap-opcode+))
+
+(defn init-kernel [k]
+  (dosync
+   ;; Register trap handlers
+   (doseq [[loc f] trap-map]
+     (write-trap loc)
+     (z80/register-trap loc f))
+
+   ;; Set up stack
+   (z80/write-reg :sp +stack-top+)))
+
+
+;;; Kernel routines
 
 (defmacro defkernfn
   "Construct a kernel routine and register in trap map."

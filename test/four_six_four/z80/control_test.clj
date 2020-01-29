@@ -2,11 +2,11 @@
   (:require [clojure.test :refer :all]
             [four-six-four.z80.control :refer :all]
             [four-six-four.z80.test-programs :as p]
-            [four-six-four.z80.vm :refer [read-mem-vector write-mem-vector *z80* make-z80 with-z80 print-z80 reset write-reg read-reg]]))
+            [four-six-four.z80.vm :refer [read-mem-vector write-mem-vector *z80* make-z80 with-z80 print-z80 reset-z80 write-reg read-reg]]))
 
 (defn z80-fixture [f]
   (with-z80 (make-z80)
-    (reset)
+    (reset-z80)
     (f)))
 
 (use-fixtures :each z80-fixture)
@@ -27,7 +27,7 @@
     (let [n 10
           data (repeatedly n #(rand-int 255))
           loc 0x100]
-      (reset)
+      (reset-z80)
       (dosync
        (write-mem-vector loc data)
        (write-reg :hl loc)
@@ -38,7 +38,7 @@
   (testing "multiply"
     (let [x 1024
           y 60]
-      (reset)
+      (reset-z80)
       (dosync
        (write-reg :de x)
        (write-reg :hl y))
@@ -49,7 +49,7 @@
 (deftest block-instructions-test
   (testing "LDDR"
     (let [src [0xa5 0x36 0x88]]
-      (reset)
+      (reset-z80)
       (dosync
        (write-reg :hl 0x1114)
        (write-reg :de 0x2225)

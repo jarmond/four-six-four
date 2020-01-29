@@ -14,7 +14,7 @@
 ;;; State
 (def ^:dynamic *z80*)
 
-(defrecord Z80 [running? pc iff registers memory])
+(defrecord Z80 [running? pc iff registers memory traps])
 (defn make-z80 []
   (map->Z80
    {:running? (ref false)
@@ -37,7 +37,8 @@
                   :f :b :c :d :e :h :l
                   ;; Alt pairs.
                   :af' :bc' :de' :hl']))
-    :memory (ref nil)}))
+    :memory (ref nil)
+    :traps (atom nil)}))
 
 (defmacro with-z80
   "Convenience for binding *z80* to a value."
@@ -46,14 +47,15 @@
      ~@body))
 
 
-(defn reset []
+(defn reset-z80 []
   (dosync
    (ref-set (:running? *z80*) false)
    (ref-set (:pc *z80*) 0)
    (ref-set (:im *z80*) 0)
    (ref-set (:iff *z80*) [false false])
    (commute (:registers *z80*) #(into {} (for [k (keys %)] [k 0])))
-   (ref-set (:memory *z80*) (vec (repeat +memory-size+ 0))))
+   (ref-set (:memory *z80*) (vec (repeat +memory-size+ 0)))
+   (reset! (:traps *z80*) {}))
   nil)
 
 ;;; Interrupts
@@ -121,7 +123,7 @@
   (if-let [pair (reg-pairs reg)]
     (let [val (read-reg reg)]
       (write-reg reg (apply f val args)))
-    (alter (:registers *z80*) apply update reg f args)))
+    (alter (:registers *z80*) update reg #(apply f % args))))
 
 ;;; Memory
 
@@ -191,13 +193,18 @@
 
 ;;; Trapping
 
-(def traps (atom {}))
+(defn register-trap [addr f]
+  (swap! (:traps *z80*) assoc addr f))
 
-(defn register-trap [code f]
-  (swap! traps assoc code f))
-
-(defn call-trap [code]
-  ((get @traps code (fn [] (log/warn "Unhandled trap: " code)))))
+(defn call-trap []
+  (let [addr (- 2 (get-pc)) ; addr of trap instruction
+        handler (get @(:traps *z80*) addr (fn [] (log/warn "Unhandled trap: " addr)))
+        sp (read-reg :sp)
+        ;; 16-bit return addr
+        ret (two-bytes->int (read-mem (inc sp)) (read-mem sp))]
+    (handler)
+    (alter-reg :sp + 2)
+    (set-pc ret)))
 
 ;;; Debugging
 

@@ -593,7 +593,8 @@
 (def emulator-group
   {0xCB
    {0x32
-    {:op :trap :src {:mode :imm :od :argword}}}})
+    ;; TRAP (call a trap function identified by PC)
+    {:op :trap}}})
 
 (def decoder
   "Merged nested map of decodes. First level is first byte, etc.."

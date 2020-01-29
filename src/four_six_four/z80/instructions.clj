@@ -56,11 +56,6 @@
          (dosync 
           ~@body)))))
 
-;;; Emulator trap
-
-(defop :trap [src]
-  (call-trap (read-val src)))
-
 ;;; Loads and stores
 
 (declare read-val)
@@ -106,6 +101,11 @@
      (<= -0x80 x 0x7F)
      (<= -0x8000 x 0x7FFF))))
 
+;;; Emulator trap
+
+(defop :trap []
+  (call-trap))
+
 ;;; Load group
 
 (defop :ld [dest src]
@@ -121,15 +121,16 @@
   (let [sp (read-reg :sp)
         val (read-val src)]
     ;; writing 16-bit val
-    (write-mem (- sp 2) val)
-    (alter-reg :sp (partial - 2))))
+    (write-mem (- sp 1) (high-byte val))
+    (write-mem (- sp 2) (low-byte val))
+    (alter-reg :sp - 2)))
 
 (defop :pop [src]
   (let [sp (read-reg :sp)
         ;; reading 16-bit val
-        val (read-mem sp)]
+        val (two-bytes->int (read-mem (inc sp)) (read-mem sp))]
     (write-val src val)
-    (alter-reg :sp (partial + 2))))
+    (alter-reg :sp + 2)))
 
 ;;; Arithmetic group.
 (def accumulator {:mode :direct :od :a})
