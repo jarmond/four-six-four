@@ -3,10 +3,22 @@
   (:import java.util.function.Function
            java.util.stream.Stream))
 
+;;; Creating collections
+
 (defn nilmap
   "Create map with keys mapped to nil."
   [keys]
   (zipmap keys (repeat nil)))
+
+(defn zero-vector
+  "Make vector of zeros."
+  [n]
+  (vec (repeat n 0)))
+
+(defn ensure-vector [x]
+  (if (coll? x) x (vector x)))
+
+;;; Modify collections
 
 (defn walk-count
   "Walk collection `coll` and count entries with `val`"
@@ -24,6 +36,8 @@
   (if (coll? form)
     (some true? (map (partial walk-member val) form))
     (= val form)))
+
+;;; Hashes
 
 (defn crc32
   "Compute CRC-32"
@@ -66,8 +80,6 @@
          (bit-and 0xFFFF))))
 
 
-(defn ensure-vector [x]
-  (if (coll? x) x (vector x)))
 
 
 #_(defn top-of-stacktrace []
@@ -82,12 +94,17 @@
         (get)
         (getMethodName))))
 
+;;; IO
+
 (defn slurp-bytes
   "Slurp unsigned bytes from a slurpable thing"
   [x]
   (with-open [out (java.io.ByteArrayOutputStream.)]
     (clojure.java.io/copy (clojure.java.io/input-stream x) out)
     (mapv byte->unsigned (.toByteArray out))))
+
+
+;;; Functional
 
 (defn flip
   "Flip function arg order."
