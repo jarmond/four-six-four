@@ -2,7 +2,7 @@
   (:require [clojure.pprint :refer [cl-format]]
             [taoensso.timbre :as log]
             [four-six-four.numbers :refer :all]
-            [four-six-four.utils :refer [nilmap crc32]]))
+            [four-six-four.utils :refer [nilmap zero-vector crc32]]))
 
 ;;;; Z80 emulation
 
@@ -10,11 +10,15 @@
 ;;; Config
 
 (defonce +memory-size+ (* 1024 64))
+(defonce +lower-rom-start+ 0)
+(defonce +lower-rom-end+ 0x3fff)
+(defonce +upper-rom-start+ 0xc000)
+(defonce +upper-rom-end+ 0xffff)
 
 ;;; State
 (def ^:dynamic *z80*)
 
-(defrecord Z80 [running? pc iff registers memory traps])
+(defrecord Z80 [running? pc iff im registers refresh memory roms traps])
 (defn make-z80 []
   (map->Z80
    {:running? (ref false)
@@ -37,6 +41,7 @@
                   :af' :bc' :de' :hl']))
     :refresh (atom nil) ; 8-bit memory refresh register
     :memory (ref nil)
+    :roms (atom nil)
     :traps (atom nil)}))
 
 (defmacro with-z80
@@ -45,7 +50,6 @@
   `(binding [*z80* ~z80]
      ~@body))
 
-
 (defn reset-z80 []
   (dosync
    (ref-set (:running? *z80*) false)
@@ -53,10 +57,11 @@
    (ref-set (:im *z80*) 0)
    (ref-set (:iff *z80*) [false false])
    (commute (:registers *z80*) #(into {} (for [k (keys %)] [k 0])))
-   (ref-set (:memory *z80*) (vec (repeat +memory-size+ 0)))
+   (ref-set (:memory *z80*) (zero-vector +memory-size+))
    (reset! (:refresh *z80*) 0)
-   (reset! (:traps *z80*) {}))
-  nil)
+   (reset! (:traps *z80*) {})
+   (reset! (:roms *z80*) {:lower nil :upper nil})
+  nil))
 
 ;;; Interrupts
 
@@ -130,8 +135,17 @@
 (defn read-mem
   [loc]
   {:pre (< -1 loc +memory-size+)}
-  (@(:memory *z80*) loc))
+  ;; Check lower ROM select state.
+  (if-let [rom (and (<= loc +lower-rom-end+)
+                    (:lower @(:roms *z80*)))]
+    (rom loc)
+    ;; Check upper ROM select state.
+    (if-let [rom (and (<= +upper-rom-start+ loc +upper-rom-end+)
+                      (:upper @(:roms *z80*)))]
+      (rom loc)
+      (@(:memory *z80*) loc))))
 
+;; NOTE RBB-vectors might be useful here
 (defn write-mem
   [loc val]
   {:pre (< -1 loc +memory-size+)}
@@ -150,6 +164,14 @@
 (defn read-mem-vector
   [loc len]
   (subvec @(:memory *z80*) loc (+ loc len)))
+
+;;; Rom selectors
+
+(defn set-lower-rom [rom]
+  (swap! (:roms *z80*) assoc :lower rom))
+
+(defn set-upper-rom [rom]
+  (swap! (:roms *z80*) assoc :upper rom))
 
 ;;; Program counter
 
@@ -215,7 +237,7 @@
   ([print?]
    (cl-format print?
               (str "#Z80[~:[H~;R~]@~4,'0x R~2,'0x~%"
-                   "    mem size ~:d crc32 ~8,'0x~%"
+                   "    mem size ~:d crc32 ~8,'0x LROM ~:[0~;1~] UROM ~:[0~;1~]~%"
                    "    reg A  F  B  C  D  E  H  L  I  IX   IY   SP~%"
                    "        ~{~2,'0x ~}~{~4,'0x ~}~%"
                    "    alt A  F  B  C  D  E  H  L~%"
@@ -228,6 +250,8 @@
               @(:refresh *z80*)
               +memory-size+
               (crc32 @(:memory *z80*))
+              (:lower @(:roms *z80*))
+              (:upper @(:roms *z80*))
               (map read-reg [:a :f :b :c :d :e :h :l :i])
               (map read-reg [:ix :iy :sp])
               (mapcat #(as-> (read-reg %) v [(high-byte v) (low-byte v)]) [:af' :bc' :de' :hl'])
