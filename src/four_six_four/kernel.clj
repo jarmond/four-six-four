@@ -1,5 +1,6 @@
 (ns four-six-four.kernel
-  (:require [four-six-four.z80.vm :as z80]
+  (:require [four-six-four.z80.instructions :refer [operation]]
+            [four-six-four.z80.vm :as z80]
             [taoensso.timbre :as log]))
 
 ;;; Config
@@ -41,6 +42,11 @@
 
 ;;; Kernel routines
 
+(defn ret
+  "Execute a RET instruction."
+  []
+  (operation {:op :ret}))
+
 (defmacro defkernfn
   "Construct a kernel routine and register in trap map."
   [name args addr & body]
@@ -54,7 +60,8 @@
 
 (defmacro stub [stub-name addr]
   `(defkernfn ~stub-name [k#] ~addr
-     (stub-msg ~(name stub-name))))
+     (stub-msg ~(name stub-name))
+     (ret)))
 
 ;;; Low Kernel Jumpblock
 

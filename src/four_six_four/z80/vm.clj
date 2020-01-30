@@ -197,7 +197,7 @@
   (swap! (:traps *z80*) assoc addr f))
 
 (defn call-trap []
-  (let [addr (- 2 (get-pc)) ; addr of trap instruction
+  (let [addr (- (get-pc) 2) ; addr of trap instruction
         handler (get @(:traps *z80*) addr (fn [] (log/warn "Unhandled trap: " addr)))
         sp (read-reg :sp)
         ;; 16-bit return addr
