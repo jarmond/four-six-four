@@ -27,6 +27,8 @@
               write-reg
               alter-reg
               call-trap
+              push-val
+              pop-val
               toggle-running]]))
 
 ;;; Instructions
@@ -117,22 +119,8 @@
       (cond-flag (zero? val) :z)
       (cond-flag (bit-test val 7) :s))))
 
-(defn push-val [val]
-  (let [sp (read-reg :sp)]
-    ;; writing 16-bit val
-    (write-mem (- sp 1) (high-byte val))
-    (write-mem (- sp 2) (low-byte val))
-    (alter-reg :sp - 2)))
-
 (defop :push [src]
   (push-val (read-val src)))
-
-(defn pop-val []
-  (let [sp (read-reg :sp)
-        ;; reading 16-bit val
-        val (two-bytes->int (read-mem (inc sp)) (read-mem sp))]
-    (alter-reg :sp + 2))
-  val)
 
 (defop :pop [src]
   (write-val src (pop-val)))

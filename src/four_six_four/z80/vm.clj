@@ -165,6 +165,22 @@
   [loc len]
   (subvec @(:memory *z80*) loc (+ loc len)))
 
+;;; Stack usage
+
+(defn push-val [val]
+  (let [sp (read-reg :sp)]
+    ;; writing 16-bit val
+    (write-mem (- sp 1) (high-byte val))
+    (write-mem (- sp 2) (low-byte val))
+    (alter-reg :sp - 2)))
+
+(defn pop-val []
+  (let [sp (read-reg :sp)
+        ;; reading 16-bit val
+        val (two-bytes->int (read-mem (inc sp)) (read-mem sp))]
+    (alter-reg :sp + 2))
+  val)
+
 ;;; Rom selectors
 
 (defn set-lower-rom [rom]
