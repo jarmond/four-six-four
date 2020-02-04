@@ -349,6 +349,12 @@
   (let [pad (- len (count s))]
     (str/join [s (apply str (repeat pad \u0000))])))
 
+(defn cdt-data
+  "Extract data block from CDT by index."
+  [cdt n]
+  (:data (nth (:blocks cdt) n)))
+
+;;; FIXME this should work by reading the header and going until last-block? = 255
 (defn cdt-extract
   "Extract file from CDT."
   [cdt filename]
@@ -362,14 +368,17 @@
          (mapcat :data)
          vec)))
 
+
 (defn cdt-cat
   "Print content of file in various forms."
-  ([cdt filename format outfile]
+  ([cdt filename-or-block format outfile]
    (with-open [w (io/writer outfile)]
      (binding [*out* w]
-       (cdt-cat cdt filename format))))
-  ([cdt filename format]
-   (let [data (cdt-extract cdt filename)]
+       (cdt-cat cdt filename-or-block format))))
+  ([cdt filename-or-block format]
+   (let [data (if (number? filename-or-block)
+                (cdt-data cdt filename-or-block)
+                (cdt-extract cdt filename-or-block))]
      (case format
        :disassemble (print-assembly (disassemble data))
        :text (print (apply str (map char data)))
