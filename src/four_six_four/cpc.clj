@@ -1,6 +1,6 @@
 (ns four-six-four.cpc
   (:require [four-six-four.kernel :refer [init-kernel make-kernel]]
-            [four-six-four.z80.vm :refer [make-z80 reset-z80 with-z80]]))
+            [four-six-four.z80.vm :as z80]))
 
 (defrecord CPC [kernel cpu video])
 (defn make-cpc []

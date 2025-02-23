@@ -14,6 +14,7 @@
 (defonce +lower-rom-end+ 0x3fff)
 (defonce +upper-rom-start+ 0xc000)
 (defonce +upper-rom-end+ 0xffff)
+(defonce +trap-opcode+ [0xcb 0x32])
 
 ;;; State
 (def ^:dynamic *z80*)

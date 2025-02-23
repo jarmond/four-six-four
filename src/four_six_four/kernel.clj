@@ -1,5 +1,6 @@
 (ns four-six-four.kernel
-  (:require [four-six-four.utils :refer [zero-vector]]
+  (:require [four-six-four.firmware :refer :all]
+            [four-six-four.utils :refer [zero-vector]]
             [four-six-four.z80.instructions :refer [operation]]
             [four-six-four.z80.vm :as z80]
             [taoensso.timbre :as log]))
@@ -8,7 +9,6 @@
 
 ;;; Config
 
-(defonce +trap-opcode+ [0xcb 0x32])
 (defonce +stack-top+ 0xBFFF) ; grows down
 (defonce +rom-size+ (* 16 1024))
 
@@ -42,17 +42,7 @@
   [k end]
   (get-in @k [end :state]))
 
-(def trap-map
-  "Map of addresses to kernel routines. Filled in by `defkernfn`."
-  {})
-
 ;;; Init
-
-;; FIXME trap should be followed by RET to avoid handling return here
-;; This makes code reusable eg. for BASIC.
-(defn write-trap
-  [loc]
-  (z80/write-mem-vector loc +trap-opcode+))
 
 (defn init-kernel [k]
   (dosync
@@ -79,22 +69,6 @@
   "Execute a RET instruction."
   []
   (operation {:op :ret}))
-
-(defmacro defkernfn
-  "Construct a kernel routine and register in trap map."
-  [name args addr & body]
-  `(do
-     (defn ~name [~@args]
-       ~@body)
-     (alter-var-root #'trap-map assoc ~addr #'~name)))
-
-(defn stub-msg [msg]
-  (log/warn "STUB:" msg))
-
-(defmacro stub [stub-name addr]
-  `(defkernfn ~stub-name [k#] ~addr
-     (stub-msg ~(name stub-name))
-     (ret)))
 
 
 ;;; Internal kernel implementation
@@ -287,30 +261,6 @@
 (stub scr-horizontal 0xbc5f)
 (stub scr-vertical 0xbc62)
 (stub scr-set-position 0xbd55)
-
-;;; CAS - Cassette manager
-(stub cas-initialise 0xbc65)
-(stub cas-set-speed 0xbc68)
-(stub cas-noisy 0xbc6b)
-(stub cas-start-motor 0xbc6e)
-(stub cas-stop-motor 0xbc71)
-(stub cas-restore-motor 0xbc74)
-(stub cas-in-open 0xbc77)
-(stub cas-in-close 0xbc7a)
-(stub cas-in-abandon 0xbc7d)
-(stub cas-in-char 0xbc80)
-(stub cas-in-direct 0xbc83)
-(stub cas-return 0xbc86)
-(stub cas-test-eof 0xbc89)
-(stub cas-out-open 0xbc8c)
-(stub cas-out-close 0xbc8f)
-(stub cas-out-abandon 0xbc92)
-(stub cas-out-char 0xbc95)
-(stub cas-out-direct 0xbc98)
-(stub cas-catalog 0xbc9b)
-(stub cas-write 0xbc9e)
-(stub cas-read 0xbca1)
-(stub cas-check 0xbca4)
 
 
 ;;; Sound manager
